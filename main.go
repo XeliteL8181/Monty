@@ -61,6 +61,10 @@ func main() {
 	// Статические файлы
 	fs := http.FileServer(http.Dir("."))
 	http.Handle("/static/", http.StripPrefix("/static/", fs))
+	http.HandleFunc("/Monty-style.css", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/css")
+		http.ServeFile(w, r, "Monty-style.css")
+	})
 	
 	// HTML-страницы
 	http.HandleFunc("/", servePage("Monty0.html"))
