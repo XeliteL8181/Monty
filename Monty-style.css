@@ -723,7 +723,11 @@
     font-weight: 400;
     margin: 15px 5px;  
   }
-    
+
+  .card-svg {
+    width: 41px;
+  } 
+
   input {
     width: 90%;
     padding: 8px;

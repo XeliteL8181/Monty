@@ -1,3 +1,5 @@
+const API_BASE_URL = 'http://localhost:8080/api';
+
 // Общая конфигурация для обоих графиков
 const chartsConfig = {
   // Конфиг для первого графика (финансовый обзор)
@@ -30,6 +32,55 @@ const chartsConfig = {
   },
 };
 
+// Функция для загрузки данных с сервера
+async function loadFinancialData() {
+  try {
+    const response = await fetch(`${API_BASE_URL}/data`);
+    if (!response.ok) throw new Error('Ошибка загрузки данных');
+    financialData = await response.json();
+    updateDisplay();
+  } catch (error) {
+    console.error('Ошибка:', error);
+  }
+}
+
+// Функция для сохранения данных на сервер
+async function saveFinancialData() {
+  try {
+    const response = await fetch(`${API_BASE_URL}/update`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(financialData)
+    });
+    if (!response.ok) throw new Error('Ошибка сохранения данных');
+  } catch (error) {
+    console.error('Ошибка:', error);
+  }
+}
+
+// Функция для загрузки данных графиков с сервера
+async function loadChartsData() {
+  try {
+    const response = await fetch(`${API_BASE_URL}/charts`);
+    if (!response.ok) throw new Error('Ошибка загрузки данных графиков');
+    const data = await response.json();
+    
+    // Обновляем конфигурацию графиков
+    chartsConfig.financialOverview.months = data.months;
+    chartsConfig.financialOverview.income = data.income;
+    chartsConfig.financialOverview.expenses = data.expenses;
+    chartsConfig.activity.days = data.days;
+    chartsConfig.activity.earning = data.earning;
+    chartsConfig.activity.spent = data.spent;
+    
+    // Пересоздаем графики с новыми данными
+    initCharts();
+  } catch (error) {
+    console.error('Ошибка:', error);
+  }
+}
 
 // Общие функции для работы с графиками
 function updateTooltipColor(color) {
@@ -289,40 +340,50 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Код для работы с карточками
-let savings = 0;
-let income = 0;
-let expenses = 0;
+let financialData = {
+  savings: 0,
+  income: 0,
+  expenses: 0
+};
 
 function updateDisplay() {
-document.getElementById("savings-button").textContent = `₽ ${savings.toLocaleString()}`;
-document.getElementById("income-button").textContent = `₽ ${income.toLocaleString()}`;
-document.getElementById("expenses-button").textContent = `₽ ${expenses.toLocaleString()}`;
-document.getElementById("balance-button").textContent = `₽ ${(income - expenses).toLocaleString()}`;
+  document.getElementById("savings-button").textContent = `${financialData.savings.toLocaleString()}₽`;
+  document.getElementById("income-button").textContent = `${financialData.income.toLocaleString()}₽`;
+  document.getElementById("expenses-button").textContent = `${financialData.expenses.toLocaleString()}₽`;
+  document.getElementById("balance-button").textContent = `${(financialData.income - financialData.expenses).toLocaleString()}₽`;
 }
 
-function updateSavings() {
-const input = document.getElementById("savings-input");
-const value = parseFloat(input.value) || 0;
-savings = value;
-input.value = "";
-updateDisplay();
+async function updateSavings() {
+  const input = document.getElementById("savings-input");
+  const value = parseFloat(input.value) || 0;
+  financialData.savings = value;
+  input.value = "";
+  await saveFinancialData();
+  updateDisplay();
 }
 
-function addIncome() {
-const input = document.getElementById("income-input");
-const value = parseFloat(input.value) || 0;
-income += value;
-input.value = "";
-updateDisplay();
+async function addIncome() {
+  const input = document.getElementById("income-input");
+  const value = parseFloat(input.value) || 0;
+  financialData.income += value;
+  input.value = "";
+  await saveFinancialData();
+  updateDisplay();
 }
 
-function addExpense() {
-const input = document.getElementById("expenses-input");
-const value = parseFloat(input.value) || 0;
-expenses += value;
-input.value = "";
-updateDisplay();
+async function addExpense() {
+  const input = document.getElementById("expenses-input");
+  const value = parseFloat(input.value) || 0;
+  financialData.expenses += value;
+  input.value = "";
+  await saveFinancialData();
+  updateDisplay();
 }
 
 // Инициализация при загрузке
 updateDisplay();
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadFinancialData();
+  loadChartsData();
+});
