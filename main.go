@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -74,9 +73,13 @@ func main() {
 	http.HandleFunc("/api/update-charts", handleUpdateCharts)
 
 	// Запуск сервера
-	port := ":8080"
-	fmt.Printf("Сервер запущен на порту %s\n", port)
-	log.Fatal(http.ListenAndServe(port, nil))
+	port := os.Getenv("PORT") // Получаем порт из переменных окружения
+    if port == "" {
+        port = "8080" // Локально используем 8080
+    }
+    
+    log.Printf("Сервер запущен на порту %s", port)
+    log.Fatal(http.ListenAndServe(":"+port, nil))
 }
 
 func servePage(filename string) http.HandlerFunc {
