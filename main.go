@@ -65,11 +65,16 @@ func main() {
 		w.Header().Set("Content-Type", "text/css")
 		http.ServeFile(w, r, "Monty-style.css")
 	})
-	
+
+	http.HandleFunc("/script.js", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/javascript")
+		http.ServeFile(w, r, "script.js")
+	})
+
 	// HTML-страницы
 	http.HandleFunc("/", servePage("Monty0.html"))
 	http.HandleFunc("/Monty1.html", servePage("Monty1.html"))
-	
+
 	// API endpoints
 	http.HandleFunc("/api/data", handleData)
 	http.HandleFunc("/api/update", handleUpdate)
@@ -78,12 +83,12 @@ func main() {
 
 	// Запуск сервера
 	port := os.Getenv("PORT") // Получаем порт из переменных окружения
-    if port == "" {
-        port = "8080" // Локально используем 8080
-    }
-    
-    log.Printf("Сервер запущен на порту %s", port)
-    log.Fatal(http.ListenAndServe(":"+port, nil))
+	if port == "" {
+		port = "8080" // Локально используем 8080
+	}
+
+	log.Printf("Сервер запущен на порту %s", port)
+	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
 
 func servePage(filename string) http.HandlerFunc {
