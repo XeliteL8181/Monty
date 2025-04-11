@@ -71,8 +71,8 @@ func main() {
 		http.ServeFile(w, r, "script.js")
 	})
 
-	http.HandleFunc("/logo.png", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "static/logo.png")
+	http.HandleFunc("/logo.ico", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "static/logo.ico")
 	})
 
 	// HTML-страницы
