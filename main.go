@@ -1,18 +1,22 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"log"
 	"net/http"
 	"os"
 	"sync"
+
+	_ "github.com/lib/pq"
 )
 
 // Структуры данных
-type FinancialData struct {
+type CardData struct {
 	Savings  float64 `json:"savings"`
 	Income   float64 `json:"income"`
 	Expenses float64 `json:"expenses"`
+	Balance  float64 `json:"balance"`
 }
 
 type ChartData struct {
@@ -24,36 +28,58 @@ type ChartData struct {
 	Spent    []int    `json:"spent"`
 }
 
-type AppState struct {
-	Financial FinancialData `json:"financial"`
-	Charts    ChartData     `json:"charts"`
-}
-
 var (
-	state AppState
-	mu    sync.Mutex
+	db  *sql.DB
+	mu  sync.Mutex
 )
 
-func init() {
-	state = AppState{
-		Financial: FinancialData{
-			Savings:  0,
-			Income:   0,
-			Expenses: 0,
-		},
-		Charts: ChartData{
-			Months:   []string{"Янв", "Фев", "Март", "Апр", "Май", "Июнь", "Июль", "Авг", "Сен", "Окт", "Нояб", "Дек"},
-			Income:   []int{55400, 55000, 60000, 100000, 150000, 80000, 70000, 55000, 75000, 100000, 65000, 130000},
-			Expenses: []int{40000, 35000, 120000, 10000, 70000, 190000, 20000, 25000, 85000, 20000, 35000, 175000},
-			Days:     []string{"Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"},
-			Earning:  []int{1800, 2200, 2500, 1900, 2300, 1700, 2100},
-			Spent:    []int{2200, 900, 1400, 2100, 1300, 1800, 1000},
-		},
+func initDB() {
+	var err error
+	connStr := os.Getenv("DATABASE_URL")
+	db, err = sql.Open("postgres", connStr)
+	if err != nil {
+		log.Fatal(err)
 	}
-	loadData()
+
+	err = db.Ping()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	createTables()
+}
+
+func createTables() {
+	query := `
+	CREATE TABLE IF NOT EXISTS cards (
+		id SERIAL PRIMARY KEY,
+		savings DECIMAL(10,2) DEFAULT 0,
+		income DECIMAL(10,2) DEFAULT 0,
+		expenses DECIMAL(10,2) DEFAULT 0,
+		balance DECIMAL(10,2) GENERATED ALWAYS AS (income - expenses) STORED,
+		last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	);
+	`
+	_, err := db.Exec(query)
+	if err != nil {
+		log.Fatal("Error creating tables:", err)
+	}
+
+	// Инициализация начальных данных, если таблица пуста
+	var count int
+	db.QueryRow("SELECT COUNT(*) FROM cards").Scan(&count)
+	if count == 0 {
+		_, err = db.Exec("INSERT INTO cards (savings, income, expenses) VALUES (0, 0, 0)")
+		if err != nil {
+			log.Fatal("Error initializing data:", err)
+		}
+	}
 }
 
 func main() {
+	initDB()
+	defer db.Close()
+
 	// Статические файлы
 	fs := http.FileServer(http.Dir("static"))
 	http.Handle("/static/", http.StripPrefix("/static/", fs))
@@ -62,15 +88,11 @@ func main() {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "static/Monty0.html")
 	})
-	http.HandleFunc("/Monty1.html", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "static/Monty1.html")
-	})
 
-	// API endpoints
-	http.HandleFunc("/api/data", handleData)
-	http.HandleFunc("/api/update", handleUpdate)
-	http.HandleFunc("/api/charts", handleCharts)
-	http.HandleFunc("/api/update-charts", handleUpdateCharts)
+	// API endpoints для карточек
+	http.HandleFunc("/api/cards", getCardsData)
+	http.HandleFunc("/api/cards/update", updateCardsData)
+	http.HandleFunc("/api/cards/reset", resetCardsData)
 
 	// Запуск сервера
 	port := os.Getenv("PORT")
@@ -81,79 +103,96 @@ func main() {
 	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
 
-// Обработчики API
-func handleData(w http.ResponseWriter, r *http.Request) {
+// Обработчики для карточек
+func getCardsData(w http.ResponseWriter, r *http.Request) {
 	mu.Lock()
 	defer mu.Unlock()
-	json.NewEncoder(w).Encode(state.Financial)
+
+	var data CardData
+	err := db.QueryRow(`
+		SELECT savings, income, expenses, balance 
+		FROM cards 
+		ORDER BY last_updated DESC 
+		LIMIT 1
+	`).Scan(&data.Savings, &data.Income, &data.Expenses, &data.Balance)
+	
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(data)
 }
 
-func handleUpdate(w http.ResponseWriter, r *http.Request) {
+func updateCardsData(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	var data FinancialData
-	if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
+	var update struct {
+		Type    string  `json:"type"` // "savings", "income" или "expenses"
+		Value   float64 `json:"value"`
+		IsIncremental bool   `json:"isIncremental"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&update); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	mu.Lock()
-	state.Financial = data
-	saveData()
-	mu.Unlock()
-
-	w.WriteHeader(http.StatusOK)
-}
-
-func handleCharts(w http.ResponseWriter, r *http.Request) {
 	mu.Lock()
 	defer mu.Unlock()
-	json.NewEncoder(w).Encode(state.Charts)
-}
 
-func handleUpdateCharts(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	var data ChartData
-	if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	mu.Lock()
-	state.Charts = data
-	saveData()
-	mu.Unlock()
-
-	w.WriteHeader(http.StatusOK)
-}
-
-// Работа с данными
-func saveData() {
-	file, err := os.Create("data.json")
-	if err != nil {
-		log.Println("Save error:", err)
-		return
-	}
-	defer file.Close()
-	json.NewEncoder(file).Encode(state)
-}
-
-func loadData() {
-	file, err := os.Open("data.json")
-	if err != nil {
-		if os.IsNotExist(err) {
-			return
+	var query string
+	switch update.Type {
+	case "savings":
+		if update.IsIncremental {
+			query = "UPDATE cards SET savings = savings + $1"
+		} else {
+			query = "UPDATE cards SET savings = $1"
 		}
-		log.Println("Load error:", err)
+	case "income":
+		if update.IsIncremental {
+			query = "UPDATE cards SET income = income + $1"
+		} else {
+			query = "UPDATE cards SET income = $1"
+		}
+	case "expenses":
+		if update.IsIncremental {
+			query = "UPDATE cards SET expenses = expenses + $1"
+		} else {
+			query = "UPDATE cards SET expenses = $1"
+		}
+	default:
+		http.Error(w, "Invalid type", http.StatusBadRequest)
 		return
 	}
-	defer file.Close()
-	json.NewDecoder(file).Decode(&state)
+
+	_, err := db.Exec(query, update.Value)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func resetCardsData(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	_, err := db.Exec("UPDATE cards SET savings = 0, income = 0, expenses = 0")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
