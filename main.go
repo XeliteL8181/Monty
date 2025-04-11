@@ -81,6 +81,10 @@ func main() {
 	http.HandleFunc("/api/charts", handleCharts)
 	http.HandleFunc("/api/update-charts", handleUpdateCharts)
 
+	http.Handle("/static/", 
+    http.StripPrefix("/static/", 
+        http.FileServer(http.Dir("static"))))
+
 	// Запуск сервера
 	port := os.Getenv("PORT") // Получаем порт из переменных окружения
 	if port == "" {
