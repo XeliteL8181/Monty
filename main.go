@@ -8,7 +8,7 @@ import (
 	"sync"
 )
 
-// Структуры данных для хранения состояния
+// Структуры данных
 type FinancialData struct {
 	Savings  float64 `json:"savings"`
 	Income   float64 `json:"income"`
@@ -35,7 +35,6 @@ var (
 )
 
 func init() {
-	// Инициализация начальных данных
 	state = AppState{
 		Financial: FinancialData{
 			Savings:  0,
@@ -51,33 +50,21 @@ func init() {
 			Spent:    []int{2200, 900, 1400, 2100, 1300, 1800, 1000},
 		},
 	}
-
-	// Попытка загрузить сохраненные данные
 	loadData()
 }
 
 func main() {
-	// Настройка маршрутов
 	// Статические файлы
 	fs := http.FileServer(http.Dir("static"))
-    http.Handle("/static/", http.StripPrefix("/static/", fs))
-	http.HandleFunc("/Monty-style.css", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/css")
-		http.ServeFile(w, r, "Monty-style.css")
-	})
+	http.Handle("/static/", http.StripPrefix("/static/", fs))
 
-	http.HandleFunc("/script.js", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/javascript")
-		http.ServeFile(w, r, "script.js")
+	// HTML страницы
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "static/Monty0.html")
 	})
-
-	http.HandleFunc("/logo.ico", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "static/logo.ico")
+	http.HandleFunc("/Monty1.html", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "static/Monty1.html")
 	})
-
-	// HTML-страницы
-	http.HandleFunc("/", servePage("Monty0.html"))
-	http.HandleFunc("/Monty1.html", servePage("Monty1.html"))
 
 	// API endpoints
 	http.HandleFunc("/api/data", handleData)
@@ -86,41 +73,30 @@ func main() {
 	http.HandleFunc("/api/update-charts", handleUpdateCharts)
 
 	// Запуск сервера
-	port := os.Getenv("PORT") // Получаем порт из переменных окружения
+	port := os.Getenv("PORT")
 	if port == "" {
-		port = "8080" // Локально используем 8080
+		port = "8080"
 	}
-
 	log.Printf("Сервер запущен на порту %s", port)
 	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
 
-func servePage(filename string) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, filename)
-	}
-}
-
-// Обработчик для получения текущих данных
+// Обработчики API
 func handleData(w http.ResponseWriter, r *http.Request) {
 	mu.Lock()
 	defer mu.Unlock()
-
-	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(state.Financial)
 }
 
-// Обработчик для обновления финансовых данных
 func handleUpdate(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Метод не поддерживается", http.StatusMethodNotAllowed)
+	if r.Method != "POST" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
 	var data FinancialData
-	err := json.NewDecoder(r.Body).Decode(&data)
-	if err != nil {
-		http.Error(w, "Неверный формат данных", http.StatusBadRequest)
+	if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -132,26 +108,21 @@ func handleUpdate(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-// Обработчик для получения данных графиков
 func handleCharts(w http.ResponseWriter, r *http.Request) {
 	mu.Lock()
 	defer mu.Unlock()
-
-	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(state.Charts)
 }
 
-// Обработчик для обновления данных графиков
 func handleUpdateCharts(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Метод не поддерживается", http.StatusMethodNotAllowed)
+	if r.Method != "POST" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
 	var data ChartData
-	err := json.NewDecoder(r.Body).Decode(&data)
-	if err != nil {
-		http.Error(w, "Неверный формат данных", http.StatusBadRequest)
+	if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -163,35 +134,26 @@ func handleUpdateCharts(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-// Сохранение данных в файл
+// Работа с данными
 func saveData() {
 	file, err := os.Create("data.json")
 	if err != nil {
-		log.Println("Ошибка при сохранении данных:", err)
+		log.Println("Save error:", err)
 		return
 	}
 	defer file.Close()
-
-	encoder := json.NewEncoder(file)
-	encoder.SetIndent("", "  ")
-	if err := encoder.Encode(state); err != nil {
-		log.Println("Ошибка при кодировании данных:", err)
-	}
+	json.NewEncoder(file).Encode(state)
 }
 
-// Загрузка данных из файла
 func loadData() {
 	file, err := os.Open("data.json")
 	if err != nil {
 		if os.IsNotExist(err) {
-			return // Файл не существует, используем данные по умолчанию
+			return
 		}
-		log.Println("Ошибка при загрузке данных:", err)
+		log.Println("Load error:", err)
 		return
 	}
 	defer file.Close()
-
-	if err := json.NewDecoder(file).Decode(&state); err != nil {
-		log.Println("Ошибка при декодировании данных:", err)
-	}
+	json.NewDecoder(file).Decode(&state)
 }
