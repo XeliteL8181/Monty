@@ -71,6 +71,10 @@ func main() {
 		http.ServeFile(w, r, "script.js")
 	})
 
+	http.HandleFunc("/logo.png", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "static/logo.png")
+	})
+
 	// HTML-страницы
 	http.HandleFunc("/", servePage("Monty0.html"))
 	http.HandleFunc("/Monty1.html", servePage("Monty1.html"))
