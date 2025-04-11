@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"os"
 	"sync"
+	"time"
+	"context"
 
 	_ "github.com/lib/pq"
 )
@@ -34,19 +36,33 @@ var (
 )
 
 func initDB() {
-	var err error
-	connStr := os.Getenv("DATABASE_URL")
-	db, err = sql.Open("postgres", connStr)
-	if err != nil {
-		log.Fatal(err)
-	}
+    connStr := os.Getenv("DATABASE_URL")
+    if connStr == "" {
+        log.Fatal("DATABASE_URL environment variable not set")
+    }
 
-	err = db.Ping()
-	if err != nil {
-		log.Fatal(err)
-	}
+    // Добавьте параметры SSL (обязательно для Render)
+    connStr += "?sslmode=require"
+    
+    var err error
+    db, err = sql.Open("postgres", connStr)
+    if err != nil {
+        log.Fatal("Failed to connect to database:", err)
+    }
 
-	createTables()
+    // Установите лимиты соединений
+    db.SetMaxOpenConns(10)
+    db.SetMaxIdleConns(5)
+
+    // Проверка подключения
+    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+    defer cancel()
+    
+    if err := db.PingContext(ctx); err != nil {
+        log.Fatal("Database ping failed:", err)
+    }
+    
+    log.Println("Successfully connected to PostgreSQL")
 }
 
 func createTables() {
@@ -97,7 +113,7 @@ func main() {
 	// Запуск сервера
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "8080"
+		port = "10000"
 	}
 	log.Printf("Сервер запущен на порту %s", port)
 	log.Fatal(http.ListenAndServe(":"+port, nil))
