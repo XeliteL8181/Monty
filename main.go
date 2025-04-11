@@ -59,8 +59,8 @@ func init() {
 func main() {
 	// Настройка маршрутов
 	// Статические файлы
-	fs := http.FileServer(http.Dir("."))
-	http.Handle("/static/", http.StripPrefix("/static/", fs))
+	fs := http.FileServer(http.Dir("static"))
+    http.Handle("/static/", http.StripPrefix("/static/", fs))
 	http.HandleFunc("/Monty-style.css", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/css")
 		http.ServeFile(w, r, "Monty-style.css")
@@ -80,10 +80,6 @@ func main() {
 	http.HandleFunc("/api/update", handleUpdate)
 	http.HandleFunc("/api/charts", handleCharts)
 	http.HandleFunc("/api/update-charts", handleUpdateCharts)
-
-	http.Handle("/static/", 
-    http.StripPrefix("/static/", 
-        http.FileServer(http.Dir("static"))))
 
 	// Запуск сервера
 	port := os.Getenv("PORT") // Получаем порт из переменных окружения
