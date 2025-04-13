@@ -110,10 +110,10 @@ async function addIncome() {
         
         elements.income.input.value = '';
         loadCardsData();
-        showAlert('Доход добавлен', 'success');
+        showAlert('Доходы обновлены', 'success');
     } catch (error) {
         console.error('Ошибка:', error);
-        showAlert('Ошибка добавления дохода', 'error');
+        showAlert('Ошибка обновления доходов', 'error');
     }
 }
 
@@ -138,10 +138,10 @@ async function addExpense() {
         
         elements.expenses.input.value = '';
         loadCardsData();
-        showAlert('Расход добавлен', 'success');
+        showAlert('Расходы обновлены', 'success');
     } catch (error) {
         console.error('Ошибка:', error);
-        showAlert('Ошибка добавления расхода', 'error');
+        showAlert('Ошибка обновления расходов', 'error');
     }
 }
 
