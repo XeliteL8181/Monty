@@ -35,16 +35,15 @@ var (
 
 func initDB() {
 	connStr := os.Getenv("DATABASE_URL")
-	if connStr == "" {
-		// Формат для PostgreSQL: "postgres://user:password@host:port/dbname?sslmode=disable"
-		connStr = "postgres://finance_user:your_password@localhost:5432/finance_db?sslmode=disable"
-	}
+    if connStr == "" {
+        log.Fatal("DATABASE_URL not set in environment variables")
+    }
 
-	var err error
-	db, err = sql.Open("postgres", connStr)
-	if err != nil {
-		log.Fatal("Failed to connect to database:", err)
-	}
+    var err error
+    db, err = sql.Open("postgres", connStr)
+    if err != nil {
+        log.Fatal("Failed to connect to database:", err)
+    }
 
 	db.SetMaxOpenConns(10)
 	db.SetMaxIdleConns(5)
