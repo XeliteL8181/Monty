@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"log"
@@ -8,9 +9,8 @@ import (
 	"os"
 	"sync"
 	"time"
-	"context"
 
-	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/lib/pq"
 )
 
 // Структуры данных
@@ -22,26 +22,26 @@ type CardData struct {
 }
 
 type HistoryRecord struct {
-	Type           string    `json:"type"`
-	Value          float64   `json:"value"`
-	IsIncremental  bool      `json:"isIncremental"`
-	Timestamp      time.Time `json:"timestamp"`
+	Type          string    `json:"type"`
+	Value         float64   `json:"value"`
+	IsIncremental bool      `json:"isIncremental"`
+	Timestamp     time.Time `json:"timestamp"`
 }
 
 var (
-	db  *sql.DB
-	mu  sync.Mutex
+	db *sql.DB
+	mu sync.Mutex
 )
 
-func initDB() {	
+func initDB() {
 	connStr := os.Getenv("DATABASE_URL")
 	if connStr == "" {
-		// Формат для MySQL: "user:password@tcp(host:port)/dbname"
-		connStr = "finance_user:your_password@tcp(localhost:3306)/finance_db?parseTime=true"
+		// Формат для PostgreSQL: "postgres://user:password@host:port/dbname?sslmode=disable"
+		connStr = "postgres://finance_user:your_password@localhost:5432/finance_db?sslmode=disable"
 	}
 
 	var err error
-	db, err = sql.Open("mysql", connStr)
+	db, err = sql.Open("postgres", connStr)
 	if err != nil {
 		log.Fatal("Failed to connect to database:", err)
 	}
@@ -51,32 +51,32 @@ func initDB() {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	
+
 	if err := db.PingContext(ctx); err != nil {
 		log.Fatal("Database ping failed:", err)
 	}
-	
-	log.Println("Successfully connected to MySQL")
+
+	log.Println("Successfully connected to PostgreSQL")
 }
 
 func createTables() {
 	query := `
 	CREATE TABLE IF NOT EXISTS cards (
-		id INT AUTO_INCREMENT PRIMARY KEY,
+		id SERIAL PRIMARY KEY,
 		savings DECIMAL(10,2) DEFAULT 0,
 		income DECIMAL(10,2) DEFAULT 0,
 		expenses DECIMAL(10,2) DEFAULT 0,
-		balance DECIMAL(10,2) AS (income - expenses),
+		balance DECIMAL(10,2) GENERATED ALWAYS AS (income - expenses) STORED,
 		last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-	) ENGINE=InnoDB;
+	);
 
 	CREATE TABLE IF NOT EXISTS card_history (
-		id INT AUTO_INCREMENT PRIMARY KEY,
+		id SERIAL PRIMARY KEY,
 		card_id INT,
-		data JSON,
+		data JSONB,
 		changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 		FOREIGN KEY (card_id) REFERENCES cards(id)
-	) ENGINE=InnoDB;
+	);
 	`
 	_, err := db.Exec(query)
 	if err != nil {
@@ -131,7 +131,7 @@ func getCardsData(w http.ResponseWriter, r *http.Request) {
 		ORDER BY last_updated DESC 
 		LIMIT 1
 	`).Scan(&data.Savings, &data.Income, &data.Expenses, &data.Balance)
-	
+
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -165,21 +165,21 @@ func updateCardsData(w http.ResponseWriter, r *http.Request) {
 	switch update.Type {
 	case "savings":
 		if update.IsIncremental {
-			query = "UPDATE cards SET savings = savings + ?"
+			query = "UPDATE cards SET savings = savings + $1"
 		} else {
-			query = "UPDATE cards SET savings = ?"
+			query = "UPDATE cards SET savings = $1"
 		}
 	case "income":
 		if update.IsIncremental {
-			query = "UPDATE cards SET income = income + ?"
+			query = "UPDATE cards SET income = income + $1"
 		} else {
-			query = "UPDATE cards SET income = ?"
+			query = "UPDATE cards SET income = $1"
 		}
 	case "expenses":
 		if update.IsIncremental {
-			query = "UPDATE cards SET expenses = expenses + ?"
+			query = "UPDATE cards SET expenses = expenses + $1"
 		} else {
-			query = "UPDATE cards SET expenses = ?"
+			query = "UPDATE cards SET expenses = $1"
 		}
 	default:
 		http.Error(w, "Invalid type", http.StatusBadRequest)
@@ -203,7 +203,7 @@ func updateCardsData(w http.ResponseWriter, r *http.Request) {
 
 	_, err = db.Exec(`
 		INSERT INTO card_history (card_id, data) 
-		VALUES (1, ?)
+		VALUES (1, $1)
 	`, jsonData)
 	if err != nil {
 		log.Println("Failed to save history:", err)
@@ -250,17 +250,17 @@ func getHistoryData(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var jsonData []byte
 		var record HistoryRecord
-		
+
 		if err := rows.Scan(&jsonData); err != nil {
 			log.Println("Error scanning history:", err)
 			continue
 		}
-		
+
 		if err := json.Unmarshal(jsonData, &record); err != nil {
 			log.Println("Error unmarshaling history:", err)
 			continue
 		}
-		
+
 		history = append(history, record)
 	}
 
