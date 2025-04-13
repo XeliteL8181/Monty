@@ -10,7 +10,7 @@ import (
 	"time"
 	"context"
 
-	_ "github.com/lib/pq"
+	_ "github.com/go-sql-driver/mysql"
 )
 
 // Структуры данных
@@ -21,13 +21,11 @@ type CardData struct {
 	Balance  float64 `json:"balance"`
 }
 
-type ChartData struct {
-	Months   []string `json:"months"`
-	Income   []int    `json:"income"`
-	Expenses []int    `json:"expenses"`
-	Days     []string `json:"days"`
-	Earning  []int    `json:"earning"`
-	Spent    []int    `json:"spent"`
+type HistoryRecord struct {
+	Type           string    `json:"type"`
+	Value          float64   `json:"value"`
+	IsIncremental  bool      `json:"isIncremental"`
+	Timestamp      time.Time `json:"timestamp"`
 }
 
 var (
@@ -36,52 +34,55 @@ var (
 )
 
 func initDB() {
-    connStr := os.Getenv("DATABASE_URL")
-    if connStr == "" {
-        log.Fatal("DATABASE_URL environment variable not set")
-    }
+	connStr := os.Getenv("DATABASE_URL")
+	if connStr == "" {
+		// Формат для MySQL: "user:password@tcp(host:port)/dbname"
+		connStr = "root:password@tcp(localhost:3306)/finance_db?parseTime=true"
+	}
 
-    // Добавьте параметры SSL (обязательно для Render)
-    connStr += "?sslmode=require"
-    
-    var err error
-    db, err = sql.Open("postgres", connStr)
-    if err != nil {
-        log.Fatal("Failed to connect to database:", err)
-    }
+	var err error
+	db, err = sql.Open("mysql", connStr)
+	if err != nil {
+		log.Fatal("Failed to connect to database:", err)
+	}
 
-    // Установите лимиты соединений
-    db.SetMaxOpenConns(10)
-    db.SetMaxIdleConns(5)
+	db.SetMaxOpenConns(10)
+	db.SetMaxIdleConns(5)
 
-    // Проверка подключения
-    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-    defer cancel()
-    
-    if err := db.PingContext(ctx); err != nil {
-        log.Fatal("Database ping failed:", err)
-    }
-    
-    log.Println("Successfully connected to PostgreSQL")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	
+	if err := db.PingContext(ctx); err != nil {
+		log.Fatal("Database ping failed:", err)
+	}
+	
+	log.Println("Successfully connected to MySQL")
 }
 
 func createTables() {
 	query := `
 	CREATE TABLE IF NOT EXISTS cards (
-		id SERIAL PRIMARY KEY,
+		id INT AUTO_INCREMENT PRIMARY KEY,
 		savings DECIMAL(10,2) DEFAULT 0,
 		income DECIMAL(10,2) DEFAULT 0,
 		expenses DECIMAL(10,2) DEFAULT 0,
-		balance DECIMAL(10,2) GENERATED ALWAYS AS (income - expenses) STORED,
+		balance DECIMAL(10,2) AS (income - expenses),
 		last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-	);
+	) ENGINE=InnoDB;
+
+	CREATE TABLE IF NOT EXISTS card_history (
+		id INT AUTO_INCREMENT PRIMARY KEY,
+		card_id INT,
+		data JSON,
+		changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (card_id) REFERENCES cards(id)
+	) ENGINE=InnoDB;
 	`
 	_, err := db.Exec(query)
 	if err != nil {
 		log.Fatal("Error creating tables:", err)
 	}
 
-	// Инициализация начальных данных, если таблица пуста
 	var count int
 	db.QueryRow("SELECT COUNT(*) FROM cards").Scan(&count)
 	if count == 0 {
@@ -95,22 +96,21 @@ func createTables() {
 func main() {
 	initDB()
 	defer db.Close()
+	createTables()
 
-	// Статические файлы
 	fs := http.FileServer(http.Dir("static"))
 	http.Handle("/static/", http.StripPrefix("/static/", fs))
 
-	// HTML страницы
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "static/Monty0.html")
 	})
 
-	// API endpoints для карточек
+	// API endpoints
 	http.HandleFunc("/api/cards", getCardsData)
 	http.HandleFunc("/api/cards/update", updateCardsData)
 	http.HandleFunc("/api/cards/reset", resetCardsData)
+	http.HandleFunc("/api/cards/history", getHistoryData)
 
-	// Запуск сервера
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "10000"
@@ -119,7 +119,7 @@ func main() {
 	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
 
-// Обработчики для карточек
+// Обработчики
 func getCardsData(w http.ResponseWriter, r *http.Request) {
 	mu.Lock()
 	defer mu.Unlock()
@@ -148,9 +148,9 @@ func updateCardsData(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var update struct {
-		Type    string  `json:"type"` // "savings", "income" или "expenses"
-		Value   float64 `json:"value"`
-		IsIncremental bool   `json:"isIncremental"`
+		Type          string  `json:"type"`
+		Value         float64 `json:"value"`
+		IsIncremental bool    `json:"isIncremental"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&update); err != nil {
@@ -165,21 +165,21 @@ func updateCardsData(w http.ResponseWriter, r *http.Request) {
 	switch update.Type {
 	case "savings":
 		if update.IsIncremental {
-			query = "UPDATE cards SET savings = savings + $1"
+			query = "UPDATE cards SET savings = savings + ?"
 		} else {
-			query = "UPDATE cards SET savings = $1"
+			query = "UPDATE cards SET savings = ?"
 		}
 	case "income":
 		if update.IsIncremental {
-			query = "UPDATE cards SET income = income + $1"
+			query = "UPDATE cards SET income = income + ?"
 		} else {
-			query = "UPDATE cards SET income = $1"
+			query = "UPDATE cards SET income = ?"
 		}
 	case "expenses":
 		if update.IsIncremental {
-			query = "UPDATE cards SET expenses = expenses + $1"
+			query = "UPDATE cards SET expenses = expenses + ?"
 		} else {
-			query = "UPDATE cards SET expenses = $1"
+			query = "UPDATE cards SET expenses = ?"
 		}
 	default:
 		http.Error(w, "Invalid type", http.StatusBadRequest)
@@ -190,6 +190,23 @@ func updateCardsData(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
+	}
+
+	// Сохраняем историю изменений
+	historyData := HistoryRecord{
+		Type:          update.Type,
+		Value:         update.Value,
+		IsIncremental: update.IsIncremental,
+		Timestamp:     time.Now(),
+	}
+	jsonData, _ := json.Marshal(historyData)
+
+	_, err = db.Exec(`
+		INSERT INTO card_history (card_id, data) 
+		VALUES (1, ?)
+	`, jsonData)
+	if err != nil {
+		log.Println("Failed to save history:", err)
 	}
 
 	w.WriteHeader(http.StatusOK)
@@ -211,4 +228,42 @@ func resetCardsData(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
+}
+
+func getHistoryData(w http.ResponseWriter, r *http.Request) {
+	mu.Lock()
+	defer mu.Unlock()
+
+	rows, err := db.Query(`
+		SELECT data 
+		FROM card_history 
+		ORDER BY changed_at DESC
+		LIMIT 100
+	`)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var history []HistoryRecord
+	for rows.Next() {
+		var jsonData []byte
+		var record HistoryRecord
+		
+		if err := rows.Scan(&jsonData); err != nil {
+			log.Println("Error scanning history:", err)
+			continue
+		}
+		
+		if err := json.Unmarshal(jsonData, &record); err != nil {
+			log.Println("Error unmarshaling history:", err)
+			continue
+		}
+		
+		history = append(history, record)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(history)
 }
