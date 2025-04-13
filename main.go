@@ -33,11 +33,11 @@ var (
 	mu  sync.Mutex
 )
 
-func initDB() {
+func initDB() {	
 	connStr := os.Getenv("DATABASE_URL")
 	if connStr == "" {
 		// Формат для MySQL: "user:password@tcp(host:port)/dbname"
-		connStr = "root:password@tcp(localhost:3306)/finance_db?parseTime=true"
+		connStr = "finance_user:your_password@tcp(localhost:3306)/finance_db?parseTime=true"
 	}
 
 	var err error
