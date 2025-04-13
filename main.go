@@ -28,22 +28,42 @@ type HistoryRecord struct {
 	Timestamp     time.Time `json:"timestamp"`
 }
 
+type ChartsData struct {
+	Months   []string `json:"months"`
+	Income   []int    `json:"income"`
+	Expenses []int    `json:"expenses"`
+	Days     []string `json:"days"`
+	Earning  []int    `json:"earning"`
+	Spent    []int    `json:"spent"`
+}
+
+type FinancialData struct {
+	Financial struct {
+		Savings  float64 `json:"savings"`
+		Income   float64 `json:"income"`
+		Expenses float64 `json:"expenses"`
+	} `json:"financial"`
+	Charts ChartsData `json:"charts"`
+}
+
 var (
-	db *sql.DB
-	mu sync.Mutex
+	db         *sql.DB
+	mu         sync.Mutex
+	jsonData   FinancialData
+	dataLoaded bool
 )
 
 func initDB() {
 	connStr := os.Getenv("DATABASE_URL")
-    if connStr == "" {
-        log.Fatal("DATABASE_URL not set in environment variables")
-    }
+	if connStr == "" {
+		log.Fatal("DATABASE_URL not set in environment variables")
+	}
 
-    var err error
-    db, err = sql.Open("postgres", connStr)
-    if err != nil {
-        log.Fatal("Failed to connect to database:", err)
-    }
+	var err error
+	db, err = sql.Open("postgres", connStr)
+	if err != nil {
+		log.Fatal("Failed to connect to database:", err)
+	}
 
 	db.SetMaxOpenConns(10)
 	db.SetMaxIdleConns(5)
@@ -60,7 +80,7 @@ func initDB() {
 
 func createTables() {
 	query := `
-	CREATE TABLE IF NOT EXISTS cards (
+	CREATE TABLE IF NOT EXISTS financial_data (
 		id SERIAL PRIMARY KEY,
 		savings DECIMAL(10,2) DEFAULT 0,
 		income DECIMAL(10,2) DEFAULT 0,
@@ -69,12 +89,22 @@ func createTables() {
 		last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 	);
 
-	CREATE TABLE IF NOT EXISTS card_history (
+	CREATE TABLE IF NOT EXISTS charts_data (
 		id SERIAL PRIMARY KEY,
-		card_id INT,
-		data JSONB,
-		changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-		FOREIGN KEY (card_id) REFERENCES cards(id)
+		months JSONB,
+		income JSONB,
+		expenses JSONB,
+		days JSONB,
+		earning JSONB,
+		spent JSONB
+	);
+
+	CREATE TABLE IF NOT EXISTS financial_history (
+		id SERIAL PRIMARY KEY,
+		type VARCHAR(20),
+		value DECIMAL(10,2),
+		is_incremental BOOLEAN,
+		timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 	);
 	`
 	_, err := db.Exec(query)
@@ -82,14 +112,61 @@ func createTables() {
 		log.Fatal("Error creating tables:", err)
 	}
 
+	// Загружаем данные из JSON при инициализации
+	loadInitialData()
+}
+
+func loadInitialData() {
+	// Читаем данные из JSON файла
+	file, err := os.ReadFile("data.json")
+	if err != nil {
+		log.Fatal("Error reading JSON file:", err)
+	}
+
+	err = json.Unmarshal(file, &jsonData)
+	if err != nil {
+		log.Fatal("Error parsing JSON:", err)
+	}
+
+	// Проверяем, есть ли данные в базе
 	var count int
-	db.QueryRow("SELECT COUNT(*) FROM cards").Scan(&count)
+	err = db.QueryRow("SELECT COUNT(*) FROM financial_data").Scan(&count)
+	if err != nil {
+		log.Fatal("Error checking data count:", err)
+	}
+
 	if count == 0 {
-		_, err = db.Exec("INSERT INTO cards (savings, income, expenses) VALUES (0, 0, 0)")
+		// Если база пустая, инициализируем её данными из JSON
+		_, err = db.Exec(`
+			INSERT INTO financial_data (savings, income, expenses) 
+			VALUES ($1, $2, $3)`,
+			jsonData.Financial.Savings,
+			jsonData.Financial.Income,
+			jsonData.Financial.Expenses,
+		)
 		if err != nil {
-			log.Fatal("Error initializing data:", err)
+			log.Fatal("Error initializing financial data:", err)
+		}
+
+		// Сохраняем данные графиков
+		months, _ := json.Marshal(jsonData.Charts.Months)
+		income, _ := json.Marshal(jsonData.Charts.Income)
+		expenses, _ := json.Marshal(jsonData.Charts.Expenses)
+		days, _ := json.Marshal(jsonData.Charts.Days)
+		earning, _ := json.Marshal(jsonData.Charts.Earning)
+		spent, _ := json.Marshal(jsonData.Charts.Spent)
+
+		_, err = db.Exec(`
+			INSERT INTO charts_data (months, income, expenses, days, earning, spent)
+			VALUES ($1, $2, $3, $4, $5, $6)`,
+			months, income, expenses, days, earning, spent,
+		)
+		if err != nil {
+			log.Fatal("Error initializing charts data:", err)
 		}
 	}
+
+	dataLoaded = true
 }
 
 func main() {
@@ -109,6 +186,7 @@ func main() {
 	http.HandleFunc("/api/cards/update", updateCardsData)
 	http.HandleFunc("/api/cards/reset", resetCardsData)
 	http.HandleFunc("/api/cards/history", getHistoryData)
+	http.HandleFunc("/api/charts", getChartsData)
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -126,7 +204,7 @@ func getCardsData(w http.ResponseWriter, r *http.Request) {
 	var data CardData
 	err := db.QueryRow(`
 		SELECT savings, income, expenses, balance 
-		FROM cards 
+		FROM financial_data 
 		ORDER BY last_updated DESC 
 		LIMIT 1
 	`).Scan(&data.Savings, &data.Income, &data.Expenses, &data.Balance)
@@ -164,21 +242,21 @@ func updateCardsData(w http.ResponseWriter, r *http.Request) {
 	switch update.Type {
 	case "savings":
 		if update.IsIncremental {
-			query = "UPDATE cards SET savings = savings + $1"
+			query = "UPDATE financial_data SET savings = savings + $1"
 		} else {
-			query = "UPDATE cards SET savings = $1"
+			query = "UPDATE financial_data SET savings = $1"
 		}
 	case "income":
 		if update.IsIncremental {
-			query = "UPDATE cards SET income = income + $1"
+			query = "UPDATE financial_data SET income = income + $1"
 		} else {
-			query = "UPDATE cards SET income = $1"
+			query = "UPDATE financial_data SET income = $1"
 		}
 	case "expenses":
 		if update.IsIncremental {
-			query = "UPDATE cards SET expenses = expenses + $1"
+			query = "UPDATE financial_data SET expenses = expenses + $1"
 		} else {
-			query = "UPDATE cards SET expenses = $1"
+			query = "UPDATE financial_data SET expenses = $1"
 		}
 	default:
 		http.Error(w, "Invalid type", http.StatusBadRequest)
@@ -192,18 +270,13 @@ func updateCardsData(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Сохраняем историю изменений
-	historyData := HistoryRecord{
-		Type:          update.Type,
-		Value:         update.Value,
-		IsIncremental: update.IsIncremental,
-		Timestamp:     time.Now(),
-	}
-	jsonData, _ := json.Marshal(historyData)
-
 	_, err = db.Exec(`
-		INSERT INTO card_history (card_id, data) 
-		VALUES (1, $1)
-	`, jsonData)
+		INSERT INTO financial_history (type, value, is_incremental)
+		VALUES ($1, $2, $3)`,
+		update.Type,
+		update.Value,
+		update.IsIncremental,
+	)
 	if err != nil {
 		log.Println("Failed to save history:", err)
 	}
@@ -220,7 +293,14 @@ func resetCardsData(w http.ResponseWriter, r *http.Request) {
 	mu.Lock()
 	defer mu.Unlock()
 
-	_, err := db.Exec("UPDATE cards SET savings = 0, income = 0, expenses = 0")
+	// Сбрасываем данные к значениям из JSON
+	_, err := db.Exec(`
+		UPDATE financial_data 
+		SET savings = $1, income = $2, expenses = $3`,
+		jsonData.Financial.Savings,
+		jsonData.Financial.Income,
+		jsonData.Financial.Expenses,
+	)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -234,9 +314,9 @@ func getHistoryData(w http.ResponseWriter, r *http.Request) {
 	defer mu.Unlock()
 
 	rows, err := db.Query(`
-		SELECT data 
-		FROM card_history 
-		ORDER BY changed_at DESC
+		SELECT type, value, is_incremental, timestamp
+		FROM financial_history
+		ORDER BY timestamp DESC
 		LIMIT 100
 	`)
 	if err != nil {
@@ -247,22 +327,62 @@ func getHistoryData(w http.ResponseWriter, r *http.Request) {
 
 	var history []HistoryRecord
 	for rows.Next() {
-		var jsonData []byte
 		var record HistoryRecord
-
-		if err := rows.Scan(&jsonData); err != nil {
+		if err := rows.Scan(&record.Type, &record.Value, &record.IsIncremental, &record.Timestamp); err != nil {
 			log.Println("Error scanning history:", err)
 			continue
 		}
-
-		if err := json.Unmarshal(jsonData, &record); err != nil {
-			log.Println("Error unmarshaling history:", err)
-			continue
-		}
-
 		history = append(history, record)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(history)
+}
+
+func getChartsData(w http.ResponseWriter, r *http.Request) {
+	mu.Lock()
+	defer mu.Unlock()
+
+	var data struct {
+		Months   []string `json:"months"`
+		Income   []int    `json:"income"`
+		Expenses []int    `json:"expenses"`
+		Days     []string `json:"days"`
+		Earning  []int    `json:"earning"`
+		Spent    []int    `json:"spent"`
+	}
+
+	// Получаем данные графиков из базы
+	row := db.QueryRow(`
+		SELECT months, income, expenses, days, earning, spent
+		FROM charts_data
+		ORDER BY id DESC
+		LIMIT 1
+	`)
+
+	var months, income, expenses, days, earning, spent []byte
+	err := row.Scan(&months, &income, &expenses, &days, &earning, &spent)
+	if err != nil {
+		// Если нет данных в базе, используем данные из JSON
+		if !dataLoaded {
+			loadInitialData()
+		}
+		data.Months = jsonData.Charts.Months
+		data.Income = jsonData.Charts.Income
+		data.Expenses = jsonData.Charts.Expenses
+		data.Days = jsonData.Charts.Days
+		data.Earning = jsonData.Charts.Earning
+		data.Spent = jsonData.Charts.Spent
+	} else {
+		// Разбираем данные из базы
+		json.Unmarshal(months, &data.Months)
+		json.Unmarshal(income, &data.Income)
+		json.Unmarshal(expenses, &data.Expenses)
+		json.Unmarshal(days, &data.Days)
+		json.Unmarshal(earning, &data.Earning)
+		json.Unmarshal(spent, &data.Spent)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(data)
 }

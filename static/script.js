@@ -42,7 +42,7 @@ function setupEventListeners() {
 // Загрузка данных карточек
 async function loadCardsData() {
     try {
-        const response = await fetch(`${API_BASE_URL}/api/cards`);
+        const response = await fetch(`${API_BASE_URL}/api/charts`);
         if (!response.ok) throw new Error('Ошибка загрузки данных');
         
         const data = await response.json();
@@ -165,6 +165,42 @@ function renderCharts(data) {
     // Здесь будет код инициализации Highcharts с полученными данными
     // Используйте данные из data.months, data.income, data.expenses и т.д.
     console.log('Данные для графиков:', data);
+    function renderCharts(data) {
+        initCharts(data);
+    }
+}
+
+function initCharts(data) {
+    // Годовой график
+    Highcharts.chart('chart-year', {
+        title: { text: '' },
+        xAxis: {
+            categories: data.months
+        },
+        series: [{
+            name: 'Доходы',
+            data: data.income
+        }, {
+            name: 'Расходы',
+            data: data.expenses
+        }]
+    });
+
+    // Недельный график активности
+    Highcharts.chart('activity-chart', {
+        chart: { type: 'column' },
+        title: { text: '' },
+        xAxis: {
+            categories: data.days
+        },
+        series: [{
+            name: 'Доходы',
+            data: data.earning
+        }, {
+            name: 'Расходы',
+            data: data.spent
+        }]
+    });
 }
 
 // ==================== Вспомогательные функции ====================
