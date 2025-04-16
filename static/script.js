@@ -30,6 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadCardsData();
     loadChartsData();
     setupEventListeners();
+    initCharts();
 });
 
 // Настройка обработчиков событий
@@ -72,7 +73,7 @@ async function updateSavings() {
     }
 
     try {
-        await fetch(`${API_BASE_URL}/api/cards/update`, {
+        const response = await fetch(`${API_BASE_URL}/api/cards/update`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
@@ -82,8 +83,10 @@ async function updateSavings() {
             })
         });
         
+        if (!response.ok) throw new Error('Ошибка сервера');
+        
         elements.savings.input.value = '';
-        loadCardsData();
+        await loadCardsData();
         showAlert('Накопления обновлены', 'success');
     } catch (error) {
         console.error('Ошибка:', error);
@@ -100,7 +103,7 @@ async function addIncome() {
     }
 
     try {
-        await fetch(`${API_BASE_URL}/api/cards/update`, {
+        const response = await fetch(`${API_BASE_URL}/api/cards/update`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
@@ -110,8 +113,10 @@ async function addIncome() {
             })
         });
         
+        if (!response.ok) throw new Error('Ошибка сервера');
+        
         elements.income.input.value = '';
-        loadCardsData();
+        await Promise.all([loadCardsData(), loadChartsData()]);
         showAlert('Доходы обновлены', 'success');
     } catch (error) {
         console.error('Ошибка:', error);
@@ -128,7 +133,7 @@ async function addExpense() {
     }
 
     try {
-        await fetch(`${API_BASE_URL}/api/cards/update`, {
+        const response = await fetch(`${API_BASE_URL}/api/cards/update`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
@@ -138,8 +143,10 @@ async function addExpense() {
             })
         });
         
+        if (!response.ok) throw new Error('Ошибка сервера');
+        
         elements.expenses.input.value = '';
-        loadCardsData();
+        await Promise.all([loadCardsData(), loadChartsData()]);
         showAlert('Расходы обновлены', 'success');
     } catch (error) {
         console.error('Ошибка:', error);
@@ -164,9 +171,57 @@ async function loadChartsData() {
 
 // Обновление графиков
 function renderCharts(data) {
-    // Здесь будет код инициализации Highcharts с полученными данными
-    // Используйте данные из data.months, data.income, data.expenses и т.д.
-    console.log('Данные для графиков:', data);
+    // Годовой график
+    Highcharts.chart('chart-year', {
+        title: { text: '' },
+        xAxis: {
+            categories: data.months
+        },
+        yAxis: {
+            title: { text: 'Сумма (₽)' }
+        },
+        series: [{
+            name: 'Доходы',
+            data: data.income,
+            color: '#28a745'
+        }, {
+            name: 'Расходы',
+            data: data.expenses,
+            color: '#dc3545'
+        }]
+    });
+
+    // Недельный график активности
+    Highcharts.chart('activity-chart', {
+        chart: { type: 'column' },
+        title: { text: '' },
+        xAxis: {
+            categories: data.days
+        },
+        yAxis: {
+            title: { text: 'Сумма (₽)' }
+        },
+        plotOptions: {
+            column: {
+                grouping: false,
+                shadow: false,
+                borderWidth: 0
+            }
+        },
+        series: [{
+            name: 'Доходы',
+            data: data.earning,
+            color: '#28a745',
+            pointPadding: 0.1,
+            pointPlacement: -0.2
+        }, {
+            name: 'Расходы',
+            data: data.spent,
+            color: '#dc3545',
+            pointPadding: 0.1,
+            pointPlacement: 0.2
+        }]
+    });
 }
 
 // ==================== Вспомогательные функции ====================
@@ -193,21 +248,20 @@ function showAlert(message, type = 'info') {
     }, 3000);
 }
 
-// Инициализация графиков (пример для Highcharts)
+// Инициализация графиков
 function initCharts() {
-    // Годовой график
+    // Создаем пустые графики при загрузке
     Highcharts.chart('chart-year', {
         title: { text: '' },
         series: [{
             name: 'Доходы',
-            data: [] // Заполнится при загрузке
+            data: []
         }, {
             name: 'Расходы',
-            data: [] // Заполнится при загрузке
+            data: []
         }]
     });
 
-    // Недельный график активности
     Highcharts.chart('activity-chart', {
         chart: { type: 'column' },
         title: { text: '' },
