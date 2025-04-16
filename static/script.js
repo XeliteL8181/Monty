@@ -100,7 +100,7 @@ async function updateSavings() {
     // Получение и проверка значения из поля ввода
     const value = parseFloat(elements.savings.input.value);
     if (isNaN(value) || value < 0 || value > MAX_VALUE) {
-        showAlert('Введите сумму от 0 до 99999999', 'warning');
+        showAlert('Максимальное значение карточки 99999999', 'warning');
         return;
     }
 
@@ -135,7 +135,7 @@ async function updateSavings() {
 async function addIncome() {
     const value = parseFloat(elements.income.input.value);
     if (isNaN(value) || value <= 0 || value > MAX_VALUE) {
-        showAlert('Введите сумму от 1 до 99999999', 'warning');
+        showAlert('Максимальное значение карточки 99999999', 'warning');
         return;
     }
 
@@ -169,7 +169,7 @@ async function addIncome() {
 async function addExpense() {
     const value = parseFloat(elements.expenses.input.value);
     if (isNaN(value) || value <= 0 || value > MAX_VALUE) {
-        showAlert('Введите сумму от 1 до 99999999', 'warning');
+        showAlert('Максимальное значение карточки 99999999', 'warning');
         return;
     }
 
