@@ -73,7 +73,7 @@
 	 // Открытие соединения с БД
 	 db, err = sql.Open("postgres", connStr)
 	 if err != nil {
-		 log.Fatal("Failed to connect to database:", err)
+		 log.Fatal("Ошибка подключения к базе данных:", err)
 	 }
  
 	 // Настройка пула соединений
@@ -85,17 +85,17 @@
 	 defer cancel()
  
 	 if err := db.PingContext(ctx); err != nil {
-		 log.Fatal("Database ping failed:", err)
+		 log.Fatal("Ошибка проверки соединения с базой данных:", err)
 	 }
  
-	 log.Println("Successfully connected to PostgreSQL")
+	 log.Println("Успешное подключение к PostgreSQL")
  }
  
  /**
   * Создание таблиц при первом запуске
   */
  func createTables() {
-	 log.Println("Creating database tables...")
+	 log.Println("Создание таблиц в базе данных...")
  
 	 // SQL запрос для создания таблиц
 	 query := `
@@ -131,7 +131,7 @@
 	 // Выполнение запроса
 	 _, err := db.Exec(query)
 	 if err != nil {
-		 log.Fatal("Error creating tables:", err)
+		 log.Fatal("Ошибка создания таблиц:", err)
 	 }
  
 	 // Инициализация данных карточек, если таблица пуста
@@ -140,7 +140,7 @@
 	 if count == 0 {
 		 _, err = db.Exec("INSERT INTO cards (savings, income, expenses) VALUES (0, 0, 0)")
 		 if err != nil {
-			 log.Fatal("Error initializing cards data:", err)
+			 log.Fatal("Ошибка инициализации данных карточек:", err)
 		 }
 	 }
  
@@ -150,27 +150,27 @@
 		 _, err = db.Exec(`
 			 INSERT INTO charts (months, income, expenses, days, earning, spent)
 			 VALUES (
-				 '["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]',
+				 '["Янв", "Фев", "Мар", "Апр", "Май", "Июн", "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек"]',
 				 '[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]',
 				 '[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]',
-				 '["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]',
+				 '["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]',
 				 '[0, 0, 0, 0, 0, 0, 0]',
 				 '[0, 0, 0, 0, 0, 0, 0]'
 			 )
 		 `)
 		 if err != nil {
-			 log.Fatal("Error initializing charts data:", err)
+			 log.Fatal("Ошибка инициализации данных графиков:", err)
 		 }
 	 }
  
-	 log.Println("Database tables initialized successfully")
+	 log.Println("Таблицы базы данных успешно инициализированы")
  }
  
  // ==================== ОСНОВНАЯ ФУНКЦИЯ ====================
  
  func main() {
 	 log.SetFlags(log.LstdFlags | log.Lshortfile)
-	 log.Println("Starting application...")
+	 log.Println("Запуск приложения...")
  
 	 initDB()         // Инициализация БД
 	 defer db.Close() // Закрытие соединения при выходе
@@ -188,9 +188,9 @@
  
 		 select {
 		 case <-done:
-			 log.Println("Tables created successfully")
+			 log.Println("Таблицы успешно созданы")
 		 case <-ctx.Done():
-			 log.Println("Table creation timed out")
+			 log.Println("Таймаут создания таблиц")
 		 }
 	 }()
  
@@ -240,9 +240,9 @@
 		 IdleTimeout:  60 * time.Second,
 	 }
  
-	 log.Printf("Server starting on port %s", port)
+	 log.Printf("Сервер запущен на порту %s", port)
 	 if err := server.ListenAndServe(); err != nil {
-		 log.Fatal("Server error:", err)
+		 log.Fatal("Ошибка сервера:", err)
 	 }
  }
  
@@ -264,7 +264,7 @@
 	 `).Scan(&data.Savings, &data.Income, &data.Expenses, &data.Balance)
  
 	 if err != nil {
-		 http.Error(w, err.Error(), http.StatusInternalServerError)
+		 http.Error(w, "Ошибка получения данных карточек: "+err.Error(), http.StatusInternalServerError)
 		 return
 	 }
  
@@ -277,7 +277,7 @@
   */
  func updateCardsData(w http.ResponseWriter, r *http.Request) {
 	 if r.Method != "POST" {
-		 http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		 http.Error(w, "Метод не разрешен", http.StatusMethodNotAllowed)
 		 return
 	 }
  
@@ -288,12 +288,12 @@
 	 }
  
 	 if err := json.NewDecoder(r.Body).Decode(&update); err != nil {
-		 http.Error(w, err.Error(), http.StatusBadRequest)
+		 http.Error(w, "Ошибка разбора JSON: "+err.Error(), http.StatusBadRequest)
 		 return
 	 }
  
 	 if update.Value < 0 || update.Value > maxValue {
-		 http.Error(w, "Value must be between 0 and 99999999", http.StatusBadRequest)
+		 http.Error(w, "Значение должно быть от 0 до 99999999", http.StatusBadRequest)
 		 return
 	 }
  
@@ -321,13 +321,13 @@
 			 query = "UPDATE cards SET expenses = $1"
 		 }
 	 default:
-		 http.Error(w, "Invalid type", http.StatusBadRequest)
+		 http.Error(w, "Неверный тип операции", http.StatusBadRequest)
 		 return
 	 }
  
 	 _, err := db.Exec(query, update.Value)
 	 if err != nil {
-		 http.Error(w, err.Error(), http.StatusInternalServerError)
+		 http.Error(w, "Ошибка обновления данных: "+err.Error(), http.StatusInternalServerError)
 		 return
 	 }
  
@@ -348,10 +348,11 @@
 		 VALUES (1, $1)
 	 `, jsonData)
 	 if err != nil {
-		 log.Println("Failed to save history:", err)
+		 log.Println("Ошибка сохранения истории:", err)
 	 }
  
 	 w.WriteHeader(http.StatusOK)
+	 w.Write([]byte("Данные успешно обновлены"))
  }
  
  /**
@@ -376,7 +377,7 @@
 		 WHERE id = 1
 	 `, field, field, month, field, month), value)
 	 if err != nil {
-		 log.Println("Failed to update monthly chart data:", err)
+		 log.Println("Ошибка обновления месячных данных графиков:", err)
 	 }
  
 	 weeklyField := "earning"
@@ -390,7 +391,7 @@
 		 WHERE id = 1
 	 `, weeklyField, weeklyField, weekday, weeklyField, weekday), value)
 	 if err != nil {
-		 log.Println("Failed to update weekly chart data:", err)
+		 log.Println("Ошибка обновления недельных данных графиков:", err)
 	 }
  }
  
@@ -412,7 +413,7 @@
 	 `).Scan(&months, &income, &expenses, &days, &earning, &spent)
  
 	 if err != nil {
-		 http.Error(w, err.Error(), http.StatusInternalServerError)
+		 http.Error(w, "Ошибка получения данных графиков: "+err.Error(), http.StatusInternalServerError)
 		 return
 	 }
  
@@ -432,7 +433,7 @@
   */
  func resetCardsData(w http.ResponseWriter, r *http.Request) {
 	 if r.Method != "POST" {
-		 http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		 http.Error(w, "Метод не разрешен", http.StatusMethodNotAllowed)
 		 return
 	 }
  
@@ -441,7 +442,7 @@
  
 	 _, err := db.Exec("UPDATE cards SET savings = 0, income = 0, expenses = 0")
 	 if err != nil {
-		 http.Error(w, err.Error(), http.StatusInternalServerError)
+		 http.Error(w, "Ошибка сброса данных карточек: "+err.Error(), http.StatusInternalServerError)
 		 return
 	 }
  
@@ -455,10 +456,11 @@
 		 WHERE id = 1
 	 `)
 	 if err != nil {
-		 log.Println("Failed to reset charts:", err)
+		 log.Println("Ошибка сброса данных графиков:", err)
 	 }
  
 	 w.WriteHeader(http.StatusOK)
+	 w.Write([]byte("Все данные успешно сброшены"))
  }
  
  /**
@@ -475,7 +477,7 @@
 		 LIMIT 100
 	 `)
 	 if err != nil {
-		 http.Error(w, err.Error(), http.StatusInternalServerError)
+		 http.Error(w, "Ошибка получения истории: "+err.Error(), http.StatusInternalServerError)
 		 return
 	 }
 	 defer rows.Close()
@@ -486,12 +488,12 @@
 		 var record HistoryRecord
  
 		 if err := rows.Scan(&jsonData); err != nil {
-			 log.Println("Error scanning history:", err)
+			 log.Println("Ошибка сканирования истории:", err)
 			 continue
 		 }
  
 		 if err := json.Unmarshal(jsonData, &record); err != nil {
-			 log.Println("Error unmarshaling history:", err)
+			 log.Println("Ошибка разбора JSON истории:", err)
 			 continue
 		 }
  
