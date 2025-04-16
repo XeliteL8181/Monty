@@ -35,25 +35,25 @@
  // Данные для графиков
  type ChartData struct {
 	 Months   []string `json:"months"`   // Названия месяцев
-	 Income   []int64  `json:"income"`  // Доходы по месяцам
-	 Expenses []int64  `json:"expenses"`// Расходы по месяцам
-	 Days     []string `json:"days"`    // Дни недели
-	 Earning  []int64  `json:"earning"` // Доходы по дням недели
-	 Spent    []int64  `json:"spent"`   // Расходы по дням недели
+	 Income   []int64  `json:"income"`   // Доходы по месяцам
+	 Expenses []int64  `json:"expenses"` // Расходы по месяцам
+	 Days     []string `json:"days"`     // Дни недели
+	 Earning  []int64  `json:"earning"`  // Доходы по дням недели
+	 Spent    []int64  `json:"spent"`    // Расходы по дням недели
  }
  
  // Запись истории изменений
  type HistoryRecord struct {
 	 Type          string    `json:"type"`          // Тип операции
 	 Value         int64     `json:"value"`         // Сумма
-	 IsIncremental bool      `json:"isIncremental"`// Добавление или замена
-	 Timestamp     time.Time `json:"timestamp"`    // Время операции
+	 IsIncremental bool      `json:"isIncremental"` // Добавление или замена
+	 Timestamp     time.Time `json:"timestamp"`     // Время операции
  }
  
  // Глобальные переменные
  var (
-	 db *sql.DB      // Подключение к БД
-	 mu sync.Mutex   // Мьютекс для потокобезопасности
+	 db *sql.DB     // Подключение к БД
+	 mu sync.Mutex  // Мьютекс для потокобезопасности
  )
  
  // ==================== ИНИЦИАЛИЗАЦИЯ БАЗЫ ДАННЫХ ====================
@@ -95,6 +95,8 @@
   * Создание таблиц при первом запуске
   */
  func createTables() {
+	 log.Println("Creating database tables...")
+ 
 	 // SQL запрос для создания таблиц
 	 query := `
 	 CREATE TABLE IF NOT EXISTS cards (
@@ -148,10 +150,10 @@
 		 _, err = db.Exec(`
 			 INSERT INTO charts (months, income, expenses, days, earning, spent)
 			 VALUES (
-				 '["Янв", "Фев", "Март", "Апр", "Май", "Июнь", "Июль", "Авг", "Сен", "Окт", "Нояб", "Дек"]',
+				 '["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]',
 				 '[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]',
 				 '[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]',
-				 '["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]',
+				 '["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]',
 				 '[0, 0, 0, 0, 0, 0, 0]',
 				 '[0, 0, 0, 0, 0, 0, 0]'
 			 )
@@ -160,38 +162,88 @@
 			 log.Fatal("Error initializing charts data:", err)
 		 }
 	 }
+ 
+	 log.Println("Database tables initialized successfully")
  }
  
  // ==================== ОСНОВНАЯ ФУНКЦИЯ ====================
  
  func main() {
+	 log.SetFlags(log.LstdFlags | log.Lshortfile)
+	 log.Println("Starting application...")
+ 
 	 initDB()         // Инициализация БД
 	 defer db.Close() // Закрытие соединения при выходе
-	 createTables()   // Создание таблиц
  
-	 // Настройка статических файлов
-	 fs := http.FileServer(http.Dir("static"))
-	 http.Handle("/static/", http.StripPrefix("/static/", fs))
+	 // Запуск создания таблиц в фоне с таймаутом
+	 go func() {
+		 ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		 defer cancel()
+		 
+		 done := make(chan struct{})
+		 go func() {
+			 createTables()
+			 close(done)
+		 }()
  
-	 // Обработчик главной страницы
+		 select {
+		 case <-done:
+			 log.Println("Tables created successfully")
+		 case <-ctx.Done():
+			 log.Println("Table creation timed out")
+		 }
+	 }()
+ 
+	 // Настройка маршрутов
 	 http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		 http.ServeFile(w, r, "static/index.html")
+		 if r.URL.Path == "/" {
+			 http.ServeFile(w, r, "static/index.html")
+			 return
+		 }
+ 
+		 // Попытка обслужить статический файл
+		 _, err := os.Stat("static" + r.URL.Path)
+		 if os.IsNotExist(err) {
+			 http.NotFound(w, r)
+			 return
+		 }
+ 
+		 http.ServeFile(w, r, "static"+r.URL.Path)
 	 })
  
 	 // API endpoints
-	 http.HandleFunc("/api/cards", getCardsData)           // Получение данных карточек
-	 http.HandleFunc("/api/cards/update", updateCardsData) // Обновление данных
-	 http.HandleFunc("/api/cards/reset", resetCardsData)   // Сброс данных
-	 http.HandleFunc("/api/cards/history", getHistoryData) // История изменений
-	 http.HandleFunc("/api/charts", getChartsData)         // Данные графиков
+	 api := http.NewServeMux()
+	 api.HandleFunc("/cards", getCardsData)           // Получение данных карточек
+	 api.HandleFunc("/cards/update", updateCardsData)  // Обновление данных
+	 api.HandleFunc("/cards/reset", resetCardsData)    // Сброс данных
+	 api.HandleFunc("/cards/history", getHistoryData) // История изменений
+	 api.HandleFunc("/charts", getChartsData)         // Данные графиков
+	 
+	 http.Handle("/api/", http.StripPrefix("/api", api))
  
-	 // Запуск сервера
+	 // Health check endpoint
+	 http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		 w.WriteHeader(http.StatusOK)
+		 w.Write([]byte("OK"))
+	 })
+ 
+	 // Запуск сервера с таймаутами
 	 port := os.Getenv("PORT")
 	 if port == "" {
-		 port = "10000" // Порт по умолчанию
+		 port = "10000"
 	 }
-	 log.Printf("Сервер запущен на порту %s", port)
-	 log.Fatal(http.ListenAndServe(":"+port, nil))
+ 
+	 server := &http.Server{
+		 Addr:         ":" + port,
+		 ReadTimeout:  15 * time.Second,
+		 WriteTimeout: 15 * time.Second,
+		 IdleTimeout:  60 * time.Second,
+	 }
+ 
+	 log.Printf("Server starting on port %s", port)
+	 if err := server.ListenAndServe(); err != nil {
+		 log.Fatal("Server error:", err)
+	 }
  }
  
  // ==================== ОБРАБОТЧИКИ API ====================
@@ -200,11 +252,10 @@
   * Получение данных карточек
   */
  func getCardsData(w http.ResponseWriter, r *http.Request) {
-	 mu.Lock() // Блокировка для потокобезопасности
+	 mu.Lock()
 	 defer mu.Unlock()
  
 	 var data CardData
-	 // Запрос последних данных из БД
 	 err := db.QueryRow(`
 		 SELECT savings, income, expenses, balance 
 		 FROM cards 
@@ -217,7 +268,6 @@
 		 return
 	 }
  
-	 // Отправка JSON ответа
 	 w.Header().Set("Content-Type", "application/json")
 	 json.NewEncoder(w).Encode(data)
  }
@@ -231,7 +281,6 @@
 		 return
 	 }
  
-	 // Парсинг JSON тела запроса
 	 var update struct {
 		 Type          string `json:"type"`
 		 Value         int64  `json:"value"`
@@ -243,16 +292,14 @@
 		 return
 	 }
  
-	 // Валидация значения
 	 if update.Value < 0 || update.Value > maxValue {
-		 http.Error(w, "Значение должно быть от 0 до 99999999", http.StatusBadRequest)
+		 http.Error(w, "Value must be between 0 and 99999999", http.StatusBadRequest)
 		 return
 	 }
  
 	 mu.Lock()
 	 defer mu.Unlock()
  
-	 // Формирование SQL запроса в зависимости от типа операции
 	 var query string
 	 switch update.Type {
 	 case "savings":
@@ -278,19 +325,16 @@
 		 return
 	 }
  
-	 // Выполнение запроса
 	 _, err := db.Exec(query, update.Value)
 	 if err != nil {
 		 http.Error(w, err.Error(), http.StatusInternalServerError)
 		 return
 	 }
  
-	 // Обновление графиков при изменении доходов/расходов
 	 if update.Type == "income" || update.Type == "expenses" {
 		 updateChartsData(update.Type, update.Value)
 	 }
  
-	 // Сохранение в историю изменений
 	 historyData := HistoryRecord{
 		 Type:          update.Type,
 		 Value:         update.Value,
@@ -312,15 +356,11 @@
  
  /**
   * Обновление данных графиков
-  * @param {string} updateType - Тип операции (income/expenses)
-  * @param {int64} value - Значение для добавления
   */
  func updateChartsData(updateType string, value int64) {
 	 now := time.Now()
-	 month := int(now.Month()) - 1 // Текущий месяц (0-based)
-	 day := int(now.Weekday())     // День недели (0=воскресенье)
-	 
-	 // Корректировка дня недели (0=понедельник)
+	 month := int(now.Month()) - 1
+	 day := int(now.Weekday())
 	 weekday := (day + 6) % 7
  
 	 var field string
@@ -330,17 +370,15 @@
 		 field = "expenses"
 	 }
  
-	 // Обновление месячных данных с использованием jsonb_set
 	 _, err := db.Exec(fmt.Sprintf(`
 		 UPDATE charts 
-		 SET %s = jsonb_set(%s, '{%d}', to_jsonb($1::bigint + (%s->>'%d')::bigint))
+		 SET %s = jsonb_set(%s, '{%d}', to_jsonb($1::bigint + (%s->>'%d')::bigint)
 		 WHERE id = 1
 	 `, field, field, month, field, month), value)
 	 if err != nil {
 		 log.Println("Failed to update monthly chart data:", err)
 	 }
  
-	 // Обновление недельных данных
 	 weeklyField := "earning"
 	 if updateType == "expenses" {
 		 weeklyField = "spent"
@@ -366,7 +404,6 @@
 	 var data ChartData
 	 var months, income, expenses, days, earning, spent []byte
  
-	 // Запрос данных из БД
 	 err := db.QueryRow(`
 		 SELECT months, income, expenses, days, earning, spent
 		 FROM charts
@@ -379,7 +416,6 @@
 		 return
 	 }
  
-	 // Десериализация JSON данных
 	 json.Unmarshal(months, &data.Months)
 	 json.Unmarshal(income, &data.Income)
 	 json.Unmarshal(expenses, &data.Expenses)
@@ -387,7 +423,6 @@
 	 json.Unmarshal(earning, &data.Earning)
 	 json.Unmarshal(spent, &data.Spent)
  
-	 // Отправка JSON ответа
 	 w.Header().Set("Content-Type", "application/json")
 	 json.NewEncoder(w).Encode(data)
  }
@@ -404,14 +439,12 @@
 	 mu.Lock()
 	 defer mu.Unlock()
  
-	 // Обнуление всех значений в cards
 	 _, err := db.Exec("UPDATE cards SET savings = 0, income = 0, expenses = 0")
 	 if err != nil {
 		 http.Error(w, err.Error(), http.StatusInternalServerError)
 		 return
 	 }
  
-	 // Сброс данных графиков
 	 _, err = db.Exec(`
 		 UPDATE charts 
 		 SET 
@@ -435,7 +468,6 @@
 	 mu.Lock()
 	 defer mu.Unlock()
  
-	 // Запрос последних 100 записей истории
 	 rows, err := db.Query(`
 		 SELECT data 
 		 FROM card_history 
@@ -448,7 +480,6 @@
 	 }
 	 defer rows.Close()
  
-	 // Формирование списка записей
 	 var history []HistoryRecord
 	 for rows.Next() {
 		 var jsonData []byte
@@ -467,7 +498,6 @@
 		 history = append(history, record)
 	 }
  
-	 // Отправка JSON ответа
 	 w.Header().Set("Content-Type", "application/json")
 	 json.NewEncoder(w).Encode(history)
  }
