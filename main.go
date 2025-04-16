@@ -13,17 +13,19 @@ import (
 	_ "github.com/lib/pq"
 )
 
+const maxValue int64 = 99999999
+
 // Структуры данных
 type CardData struct {
-	Savings  float64 `json:"savings"`
-	Income   float64 `json:"income"`
-	Expenses float64 `json:"expenses"`
-	Balance  float64 `json:"balance"`
+	Savings  int64 `json:"savings"`
+	Income   int64 `json:"income"`
+	Expenses int64 `json:"expenses"`
+	Balance  int64 `json:"balance"`
 }
 
 type HistoryRecord struct {
 	Type          string    `json:"type"`
-	Value         float64   `json:"value"`
+	Value         int64   `json:"value"`
 	IsIncremental bool      `json:"isIncremental"`
 	Timestamp     time.Time `json:"timestamp"`
 }
@@ -62,13 +64,14 @@ func initDB() {
 func createTables() {
 	query := `
 	CREATE TABLE IF NOT EXISTS cards (
-		id SERIAL PRIMARY KEY,
-		savings DECIMAL(10,2) DEFAULT 0,
-		income DECIMAL(10,2) DEFAULT 0,
-		expenses DECIMAL(10,2) DEFAULT 0,
-		balance DECIMAL(10,2) GENERATED ALWAYS AS (income - expenses) STORED,
-		last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	id SERIAL PRIMARY KEY,
+	savings BIGINT DEFAULT 0,
+	income BIGINT DEFAULT 0,
+	expenses BIGINT DEFAULT 0,
+	balance BIGINT GENERATED ALWAYS AS (income - expenses) STORED,
+	last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 	);
+
 
 	CREATE TABLE IF NOT EXISTS card_history (
 		id SERIAL PRIMARY KEY,
@@ -148,13 +151,18 @@ func updateCardsData(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var update struct {
-		Type          string  `json:"type"`
-		Value         float64 `json:"value"`
-		IsIncremental bool    `json:"isIncremental"`
+		Type          string `json:"type"`
+		Value         int64  `json:"value"`
+		IsIncremental bool   `json:"isIncremental"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&update); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if update.Value < 0 || update.Value > maxValue {
+		http.Error(w, "Значение должно быть от 0 до 99999999", http.StatusBadRequest)
 		return
 	}
 

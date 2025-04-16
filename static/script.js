@@ -1,6 +1,8 @@
 // Конфигурация API
 const API_BASE_URL = '';
 
+const MAX_VALUE = 99999999;
+
 // DOM элементы
 const elements = {
     savings: {
@@ -55,17 +57,17 @@ async function loadCardsData() {
 
 // Обновление интерфейса карточек
 function updateCardsUI(data) {
-    elements.savings.display.textContent = `${formatCurrency(data.savings)}`;
-    elements.income.display.textContent = `${formatCurrency(data.income)}`;
-    elements.expenses.display.textContent = `${formatCurrency(data.expenses)}`;
-    elements.balance.display.textContent = `${formatCurrency(data.balance)}`;
+    elements.savings.display.textContent = `${formatCurrency(data.savings)}₽`;
+    elements.income.display.textContent = `${formatCurrency(data.income)}₽`;
+    elements.expenses.display.textContent = `${formatCurrency(data.expenses)}₽`;
+    elements.balance.display.textContent = `${formatCurrency(data.balance)}₽`;
 }
 
 // Обновление накоплений
 async function updateSavings() {
     const value = parseFloat(elements.savings.input.value);
-    if (isNaN(value)) {
-        showAlert('Введите корректную сумму', 'warning');
+    if (isNaN(value) || value < 0 || value > MAX_VALUE) {
+        showAlert('Введите сумму от 0 до 99999999', 'warning');
         return;
     }
 
@@ -92,8 +94,8 @@ async function updateSavings() {
 // Добавление дохода
 async function addIncome() {
     const value = parseFloat(elements.income.input.value);
-    if (isNaN(value) || value <= 0) {
-        showAlert('Введите корректную сумму', 'warning');
+    if (isNaN(value) || value <= 0 || value > MAX_VALUE) {
+        showAlert('Введите сумму от 1 до 99999999', 'warning');
         return;
     }
 
@@ -120,8 +122,8 @@ async function addIncome() {
 // Добавление расхода
 async function addExpense() {
     const value = parseFloat(elements.expenses.input.value);
-    if (isNaN(value) || value <= 0) {
-        showAlert('Введите корректную сумму', 'warning');
+    if (isNaN(value) || value <= 0 || value > MAX_VALUE) {
+        showAlert('Введите сумму от 1 до 99999999', 'warning');
         return;
     }
 
