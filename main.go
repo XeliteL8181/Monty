@@ -1,7 +1,7 @@
 /**
  * Файл: main.go
- * Основной серверный скрипт приложения для учета финансов
- * Реализует REST API, работу с базой данных и бизнес-логику
+ * Полная версия финансового приложения
+ * Оптимизировано для развертывания на Render.com
  */
 
  package main
@@ -14,90 +14,146 @@
 	 "log"
 	 "net/http"
 	 "os"
+	 "os/signal"
 	 "sync"
+	 "syscall"
 	 "time"
  
 	 _ "github.com/lib/pq" // Драйвер PostgreSQL
  )
  
- // ==================== КОНСТАНТЫ И СТРУКТУРЫ ====================
+ // ==================== КОНСТАНТЫ И НАСТРОЙКИ ====================
  
- const maxValue int64 = 99999999 // Максимальное значение для операций
- 
- // Данные карточек (хранятся в БД)
- type CardData struct {
-	 Savings  int64 `json:"savings"`  // Накопления
-	 Income   int64 `json:"income"`   // Доходы
-	 Expenses int64 `json:"expenses"` // Расходы
-	 Balance  int64 `json:"balance"`  // Баланс (вычисляемое поле)
- }
- 
- // Данные для графиков
- type ChartData struct {
-	 Months   []string `json:"months"`   // Названия месяцев
-	 Income   []int64  `json:"income"`   // Доходы по месяцам
-	 Expenses []int64  `json:"expenses"` // Расходы по месяцам
-	 Days     []string `json:"days"`     // Дни недели
-	 Earning  []int64  `json:"earning"`  // Доходы по дням недели
-	 Spent    []int64  `json:"spent"`    // Расходы по дням недели
- }
- 
- // Запись истории изменений
- type HistoryRecord struct {
-	 Type          string    `json:"type"`          // Тип операции
-	 Value         int64     `json:"value"`         // Сумма
-	 IsIncremental bool      `json:"isIncremental"` // Добавление или замена
-	 Timestamp     time.Time `json:"timestamp"`     // Время операции
- }
- 
- // Глобальные переменные
- var (
-	 db *sql.DB     // Подключение к БД
-	 mu sync.Mutex  // Мьютекс для потокобезопасности
+ const (
+	 maxValue        int64         = 99999999
+	 defaultPort     string        = "10000"
+	 serverTimeout   time.Duration = 15 * time.Second
+	 dbInitTimeout   time.Duration = 30 * time.Second
+	 shutdownTimeout time.Duration = 5 * time.Second
  )
  
- // ==================== ИНИЦИАЛИЗАЦИЯ БАЗЫ ДАННЫХ ====================
+ // ==================== СТРУКТУРЫ ДАННЫХ ====================
  
- /**
-  * Инициализация подключения к PostgreSQL
-  */
- func initDB() {
-	 // Получение строки подключения из переменных окружения
-	 connStr := os.Getenv("DATABASE_URL")
-	 if connStr == "" {
-		 // Значение по умолчанию для разработки
-		 connStr = "postgres://finance_user:your_password@localhost:5432/finance_db?sslmode=disable"
-	 }
- 
-	 var err error
-	 // Открытие соединения с БД
-	 db, err = sql.Open("postgres", connStr)
-	 if err != nil {
-		 log.Fatal("Ошибка подключения к базе данных:", err)
-	 }
- 
-	 // Настройка пула соединений
-	 db.SetMaxOpenConns(10) // Максимальное число открытых соединений
-	 db.SetMaxIdleConns(5)  // Максимальное число неактивных соединений
- 
-	 // Проверка соединения
-	 ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	 defer cancel()
- 
-	 if err := db.PingContext(ctx); err != nil {
-		 log.Fatal("Ошибка проверки соединения с базой данных:", err)
-	 }
- 
-	 log.Println("Успешное подключение к PostgreSQL")
+ type CardData struct {
+	 Savings  int64 `json:"savings"`
+	 Income   int64 `json:"income"`
+	 Expenses int64 `json:"expenses"`
+	 Balance  int64 `json:"balance"`
  }
  
- /**
-  * Создание таблиц при первом запуске
-  */
- func createTables() {
+ type ChartData struct {
+	 Months   []string `json:"months"`
+	 Income   []int64  `json:"income"`
+	 Expenses []int64  `json:"expenses"`
+	 Days     []string `json:"days"`
+	 Earning  []int64  `json:"earning"`
+	 Spent    []int64  `json:"spent"`
+ }
+ 
+ type HistoryRecord struct {
+	 Type          string    `json:"type"`
+	 Value         int64     `json:"value"`
+	 IsIncremental bool      `json:"isIncremental"`
+	 Timestamp     time.Time `json:"timestamp"`
+ }
+ 
+ // ==================== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ====================
+ 
+ var (
+	 db  *sql.DB
+	 mu  sync.Mutex
+	 ctx context.Context
+ )
+ 
+ // ==================== ОСНОВНЫЕ ФУНКЦИИ ====================
+ 
+ func main() {
+	 configureLogger()
+	 log.Println("Запуск финансового приложения")
+ 
+	 // Инициализация контекста с обработкой прерываний
+	 ctx, cancel := context.WithCancel(context.Background())
+	 defer cancel()
+	 go handleShutdown(cancel)
+ 
+	 // Инициализация базы данных
+	 if err := initDB(); err != nil {
+		 log.Fatalf("Ошибка инициализации БД: %v", err)
+	 }
+	 defer closeDB()
+ 
+	 // Инициализация структуры БД
+	 if err := initDatabaseStructure(ctx); err != nil {
+		 log.Printf("Ошибка инициализации структуры БД: %v", err)
+	 }
+ 
+	 // Запуск сервера
+	 startServer(ctx)
+ }
+ 
+ func configureLogger() {
+	 log.SetFlags(log.LstdFlags | log.Lshortfile)
+ }
+ 
+ func handleShutdown(cancel context.CancelFunc) {
+	 sigChan := make(chan os.Signal, 1)
+	 signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	 sig := <-sigChan
+	 log.Printf("Получен сигнал: %v", sig)
+	 cancel()
+ }
+ 
+ // ==================== РАБОТА С БАЗОЙ ДАННЫХ ====================
+ 
+ func initDB() error {
+	 connStr := getDBConnectionString()
+	 var err error
+ 
+	 db, err = sql.Open("postgres", connStr)
+	 if err != nil {
+		 return fmt.Errorf("ошибка подключения: %v", err)
+	 }
+ 
+	 configureDBPool()
+	 return testDBConnection()
+ }
+ 
+ func getDBConnectionString() string {
+	 if connStr := os.Getenv("DATABASE_URL"); connStr != "" {
+		 return connStr
+	 }
+	 return "postgres://finance_user:your_password@localhost:5432/finance_db?sslmode=disable"
+ }
+ 
+ func configureDBPool() {
+	 db.SetMaxOpenConns(25)
+	 db.SetMaxIdleConns(25)
+	 db.SetConnMaxLifetime(5 * time.Minute)
+	 db.SetConnMaxIdleTime(2 * time.Minute)
+ }
+ 
+ func testDBConnection() error {
+	 ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	 defer cancel()
+	 return db.PingContext(ctx)
+ }
+ 
+ func closeDB() {
+	 if err := db.Close(); err != nil {
+		 log.Printf("Ошибка закрытия БД: %v", err)
+	 }
+ }
+ 
+ func initDatabaseStructure(ctx context.Context) error {
+	 if err := createTables(ctx); err != nil {
+		 return err
+	 }
+	 return initDefaultData(ctx)
+ }
+ 
+ func createTables(ctx context.Context) error {
 	 log.Println("Создание таблиц в базе данных...")
  
-	 // SQL запрос для создания таблиц
 	 query := `
 	 CREATE TABLE IF NOT EXISTS cards (
 		 id SERIAL PRIMARY KEY,
@@ -125,138 +181,167 @@
 		 earning JSONB,
 		 spent JSONB,
 		 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-	 );
-	 `
+	 );`
  
-	 // Выполнение запроса
-	 _, err := db.Exec(query)
-	 if err != nil {
-		 log.Fatal("Ошибка создания таблиц:", err)
-	 }
- 
-	 // Инициализация данных карточек, если таблица пуста
-	 var count int
-	 db.QueryRow("SELECT COUNT(*) FROM cards").Scan(&count)
-	 if count == 0 {
-		 _, err = db.Exec("INSERT INTO cards (savings, income, expenses) VALUES (0, 0, 0)")
-		 if err != nil {
-			 log.Fatal("Ошибка инициализации данных карточек:", err)
-		 }
-	 }
- 
-	 // Инициализация данных графиков, если таблица пуста
-	 db.QueryRow("SELECT COUNT(*) FROM charts").Scan(&count)
-	 if count == 0 {
-		 _, err = db.Exec(`
-			 INSERT INTO charts (months, income, expenses, days, earning, spent)
-			 VALUES (
-				 '["Янв", "Фев", "Мар", "Апр", "Май", "Июн", "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек"]',
-				 '[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]',
-				 '[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]',
-				 '["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]',
-				 '[0, 0, 0, 0, 0, 0, 0]',
-				 '[0, 0, 0, 0, 0, 0, 0]'
-			 )
-		 `)
-		 if err != nil {
-			 log.Fatal("Ошибка инициализации данных графиков:", err)
-		 }
-	 }
- 
-	 log.Println("Таблицы базы данных успешно инициализированы")
+	 _, err := db.ExecContext(ctx, query)
+	 return err
  }
  
- // ==================== ОСНОВНАЯ ФУНКЦИЯ ====================
- 
- func main() {
-	 log.SetFlags(log.LstdFlags | log.Lshortfile)
-	 log.Println("Запуск приложения...")
- 
-	 initDB()         // Инициализация БД
-	 defer db.Close() // Закрытие соединения при выходе
- 
-	 // Запуск создания таблиц в фоне с таймаутом
-	 go func() {
-		 ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		 defer cancel()
-		 
-		 done := make(chan struct{})
-		 go func() {
-			 createTables()
-			 close(done)
-		 }()
- 
-		 select {
-		 case <-done:
-			 log.Println("Таблицы успешно созданы")
-		 case <-ctx.Done():
-			 log.Println("Таймаут создания таблиц")
-		 }
-	 }()
- 
-	 // Настройка маршрутов
-	 http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		 if r.URL.Path == "/" {
-			 http.ServeFile(w, r, "static/index.html")
-			 return
-		 }
- 
-		 // Попытка обслужить статический файл
-		 _, err := os.Stat("static" + r.URL.Path)
-		 if os.IsNotExist(err) {
-			 http.NotFound(w, r)
-			 return
-		 }
- 
-		 http.ServeFile(w, r, "static"+r.URL.Path)
-	 })
- 
-	 // API endpoints
-	 api := http.NewServeMux()
-	 api.HandleFunc("/cards", getCardsData)           // Получение данных карточек
-	 api.HandleFunc("/cards/update", updateCardsData)  // Обновление данных
-	 api.HandleFunc("/cards/reset", resetCardsData)    // Сброс данных
-	 api.HandleFunc("/cards/history", getHistoryData) // История изменений
-	 api.HandleFunc("/charts", getChartsData)         // Данные графиков
-	 
-	 http.Handle("/api/", http.StripPrefix("/api", api))
- 
-	 // Health check endpoint
-	 http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		 w.WriteHeader(http.StatusOK)
-		 w.Write([]byte("OK"))
-	 })
- 
-	 // Запуск сервера с таймаутами
-	 port := os.Getenv("PORT")
-	 if port == "" {
-		 port = "10000"
+ func initDefaultData(ctx context.Context) error {
+	 if err := initCardsData(ctx); err != nil {
+		 return err
 	 }
+	 return initChartsData(ctx)
+ }
+ 
+ func initCardsData(ctx context.Context) error {
+	 var count int
+	 if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM cards").Scan(&count); err != nil {
+		 return err
+	 }
+ 
+	 if count == 0 {
+		 _, err := db.ExecContext(ctx, "INSERT INTO cards (savings, income, expenses) VALUES (0, 0, 0)")
+		 return err
+	 }
+	 return nil
+ }
+ 
+ func initChartsData(ctx context.Context) error {
+	 var count int
+	 if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM charts").Scan(&count); err != nil {
+		 return err
+	 }
+ 
+	 if count == 0 {
+		 _, err := db.ExecContext(ctx, `
+			 INSERT INTO charts (months, income, expenses, days, earning, spent)
+			 VALUES (
+				 '["Янв","Фев","Мар","Апр","Май","Июн","Июл","Авг","Сен","Окт","Ноя","Дек"]',
+				 '[0,0,0,0,0,0,0,0,0,0,0,0]',
+				 '[0,0,0,0,0,0,0,0,0,0,0,0]',
+				 '["Пн","Вт","Ср","Чт","Пт","Сб","Вс"]',
+				 '[0,0,0,0,0,0,0]',
+				 '[0,0,0,0,0,0,0]'
+			 )
+		 `)
+		 return err
+	 }
+	 return nil
+ }
+ 
+ // ==================== HTTP СЕРВЕР ====================
+ 
+ func startServer(ctx context.Context) {
+	 router := setupRouter()
+	 port := getPort()
  
 	 server := &http.Server{
 		 Addr:         ":" + port,
-		 ReadTimeout:  15 * time.Second,
-		 WriteTimeout: 15 * time.Second,
-		 IdleTimeout:  60 * time.Second,
+		 Handler:      router,
+		 ReadTimeout:  serverTimeout,
+		 WriteTimeout: serverTimeout,
+		 IdleTimeout:  2 * serverTimeout,
 	 }
  
-	 log.Printf("Сервер запущен на порту %s", port)
-	 if err := server.ListenAndServe(); err != nil {
-		 log.Fatal("Ошибка сервера:", err)
+	 go runServer(server, port)
+	 waitForShutdown(ctx, server)
+ }
+ 
+ func getPort() string {
+	 if port := os.Getenv("PORT"); port != "" {
+		 return port
 	 }
+	 return defaultPort
+ }
+ 
+ func runServer(server *http.Server, port string) {
+	 log.Printf("Сервер запущен на порту %s", port)
+	 if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		 log.Fatalf("Ошибка сервера: %v", err)
+	 }
+ }
+ 
+ func waitForShutdown(ctx context.Context, server *http.Server) {
+	 <-ctx.Done()
+	 shutdownServer(server)
+ }
+ 
+ func shutdownServer(server *http.Server) {
+	 shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+	 defer cancel()
+ 
+	 log.Println("Завершение работы сервера...")
+	 if err := server.Shutdown(shutdownCtx); err != nil {
+		 log.Printf("Ошибка graceful shutdown: %v", err)
+	 } else {
+		 log.Println("Сервер успешно остановлен")
+	 }
+ }
+ 
+ func setupRouter() *http.ServeMux {
+	 router := http.NewServeMux()
+ 
+	 // Статические файлы
+	 fs := http.FileServer(http.Dir("static"))
+	 router.Handle("/static/", http.StripPrefix("/static/", fs))
+ 
+	 // Главная страница
+	 router.HandleFunc("/", handleIndex)
+ 
+	 // API endpoints
+	 api := http.NewServeMux()
+	 api.HandleFunc("/cards", getCardsData)
+	 api.HandleFunc("/cards/update", updateCardsData)
+	 api.HandleFunc("/cards/reset", resetCardsData)
+	 api.HandleFunc("/cards/history", getHistoryData)
+	 api.HandleFunc("/charts", getChartsData)
+	 router.Handle("/api/", http.StripPrefix("/api", api))
+ 
+	 // Health check
+	 router.HandleFunc("/health", healthCheck)
+ 
+	 return router
+ }
+ 
+ func handleIndex(w http.ResponseWriter, r *http.Request) {
+	 if r.URL.Path != "/" {
+		 http.NotFound(w, r)
+		 return
+	 }
+	 http.ServeFile(w, r, "static/index.html")
+ }
+ 
+ func healthCheck(w http.ResponseWriter, r *http.Request) {
+	 if r.Method != "GET" {
+		 http.Error(w, "Метод не разрешен", http.StatusMethodNotAllowed)
+		 return
+	 }
+ 
+	 ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	 defer cancel()
+ 
+	 if err := db.PingContext(ctx); err != nil {
+		 http.Error(w, "Соединение с БД не активно", http.StatusServiceUnavailable)
+		 return
+	 }
+ 
+	 respondJSON(w, map[string]string{"status": "OK"})
  }
  
  // ==================== ОБРАБОТЧИКИ API ====================
  
- /**
-  * Получение данных карточек
-  */
  func getCardsData(w http.ResponseWriter, r *http.Request) {
+	 if r.Method != "GET" {
+		 http.Error(w, "Метод не разрешен", http.StatusMethodNotAllowed)
+		 return
+	 }
+ 
 	 mu.Lock()
 	 defer mu.Unlock()
  
 	 var data CardData
-	 err := db.QueryRow(`
+	 err := db.QueryRowContext(r.Context(), `
 		 SELECT savings, income, expenses, balance 
 		 FROM cards 
 		 ORDER BY last_updated DESC 
@@ -264,42 +349,94 @@
 	 `).Scan(&data.Savings, &data.Income, &data.Expenses, &data.Balance)
  
 	 if err != nil {
-		 http.Error(w, "Ошибка получения данных карточек: "+err.Error(), http.StatusInternalServerError)
+		 respondError(w, "Ошибка получения данных карточек", err, http.StatusInternalServerError)
 		 return
 	 }
  
-	 w.Header().Set("Content-Type", "application/json")
-	 json.NewEncoder(w).Encode(data)
+	 respondJSON(w, data)
  }
  
- /**
-  * Обновление данных карточек
-  */
- func updateCardsData(w http.ResponseWriter, r *http.Request) {
-	 if r.Method != "POST" {
-		 http.Error(w, "Метод не разрешен", http.StatusMethodNotAllowed)
-		 return
-	 }
+func updateCardsData(w http.ResponseWriter, r *http.Request) {
+    // Объявляем структуру для входных данных
+    type UpdateRequest struct {
+        Type          string `json:"type"`
+        Value         int64  `json:"value"`
+        IsIncremental bool   `json:"isIncremental"`
+    }
+
+    // Объявляем структуру для передачи в функции
+    type UpdateData struct {
+        Type          string
+        Value         int64
+        IsIncremental bool
+    }
+
+    if r.Method != "POST" {
+        http.Error(w, "Метод не разрешен", http.StatusMethodNotAllowed)
+        return
+    }
+
+    // Парсим JSON в переменную updateRequest
+    var updateRequest UpdateRequest
+    if err := json.NewDecoder(r.Body).Decode(&updateRequest); err != nil {
+        respondError(w, "Ошибка разбора JSON", err, http.StatusBadRequest)
+        return
+    }
+
+    // Конвертируем в нужный тип
+    update := UpdateData{
+        Type:          updateRequest.Type,
+        Value:         updateRequest.Value,
+        IsIncremental: updateRequest.IsIncremental,
+    }
+
+    if update.Value < 0 || update.Value > maxValue {
+        http.Error(w, "Значение должно быть от 0 до 99999999", http.StatusBadRequest)
+        return
+    }
+
+    mu.Lock()
+    defer mu.Unlock()
+
+    tx, err := db.BeginTx(r.Context(), nil)
+    if err != nil {
+        respondError(w, "Ошибка начала транзакции", err, http.StatusInternalServerError)
+        return
+    }
+    defer func() {
+        if err != nil {
+            tx.Rollback()
+        }
+    }()
+
+    if err := updateCardValues(r.Context(), tx, update); err != nil {
+        respondError(w, "Ошибка обновления данных", err, http.StatusInternalServerError)
+        return
+    }
+
+    if update.Type == "income" || update.Type == "expenses" {
+        if err := updateChartsData(r.Context(), tx, update.Type, update.Value); err != nil {
+            log.Printf("Ошибка обновления графиков: %v", err)
+        }
+    }
+
+    if err := saveHistoryRecord(r.Context(), tx, update); err != nil {
+        log.Printf("Ошибка сохранения истории: %v", err)
+    }
+
+    if err := tx.Commit(); err != nil {
+        respondError(w, "Ошибка сохранения изменений", err, http.StatusInternalServerError)
+        return
+    }
+
+    respondSuccess(w, "Данные успешно обновлены")
+}
  
-	 var update struct {
-		 Type          string `json:"type"`
-		 Value         int64  `json:"value"`
-		 IsIncremental bool   `json:"isIncremental"`
-	 }
- 
-	 if err := json.NewDecoder(r.Body).Decode(&update); err != nil {
-		 http.Error(w, "Ошибка разбора JSON: "+err.Error(), http.StatusBadRequest)
-		 return
-	 }
- 
-	 if update.Value < 0 || update.Value > maxValue {
-		 http.Error(w, "Значение должно быть от 0 до 99999999", http.StatusBadRequest)
-		 return
-	 }
- 
-	 mu.Lock()
-	 defer mu.Unlock()
- 
+ func updateCardValues(ctx context.Context, tx *sql.Tx, update struct {
+	 Type          string
+	 Value         int64
+	 IsIncremental bool
+ }) error {
 	 var query string
 	 switch update.Type {
 	 case "savings":
@@ -321,91 +458,87 @@
 			 query = "UPDATE cards SET expenses = $1"
 		 }
 	 default:
-		 http.Error(w, "Неверный тип операции", http.StatusBadRequest)
-		 return
+		 return fmt.Errorf("неверный тип операции: %s", update.Type)
 	 }
  
-	 _, err := db.Exec(query, update.Value)
-	 if err != nil {
-		 http.Error(w, "Ошибка обновления данных: "+err.Error(), http.StatusInternalServerError)
-		 return
-	 }
- 
-	 if update.Type == "income" || update.Type == "expenses" {
-		 updateChartsData(update.Type, update.Value)
-	 }
- 
-	 historyData := HistoryRecord{
-		 Type:          update.Type,
-		 Value:         update.Value,
-		 IsIncremental: update.IsIncremental,
-		 Timestamp:     time.Now(),
-	 }
-	 jsonData, _ := json.Marshal(historyData)
- 
-	 _, err = db.Exec(`
-		 INSERT INTO card_history (card_id, data) 
-		 VALUES (1, $1)
-	 `, jsonData)
-	 if err != nil {
-		 log.Println("Ошибка сохранения истории:", err)
-	 }
- 
-	 w.WriteHeader(http.StatusOK)
-	 w.Write([]byte("Данные успешно обновлены"))
+	 _, err := tx.ExecContext(ctx, query, update.Value)
+	 return err
  }
  
- /**
-  * Обновление данных графиков
-  */
- func updateChartsData(updateType string, value int64) {
+ func updateChartsData(ctx context.Context, tx *sql.Tx, updateType string, value int64) error {
 	 now := time.Now()
 	 month := int(now.Month()) - 1
 	 day := int(now.Weekday())
 	 weekday := (day + 6) % 7
  
-	 var field string
-	 if updateType == "income" {
-		 field = "income"
-	 } else {
+	 // Обновление месячных данных
+	 field := "income"
+	 if updateType == "expenses" {
 		 field = "expenses"
 	 }
  
-	 _, err := db.Exec(fmt.Sprintf(`
+	 if _, err := tx.ExecContext(ctx, fmt.Sprintf(`
 		 UPDATE charts 
 		 SET %s = jsonb_set(%s, '{%d}', to_jsonb($1::bigint + (%s->>'%d')::bigint)
 		 WHERE id = 1
-	 `, field, field, month, field, month), value)
-	 if err != nil {
-		 log.Println("Ошибка обновления месячных данных графиков:", err)
+	 `, field, field, month, field, month), value); err != nil {
+		 return fmt.Errorf("месячные данные: %v", err)
 	 }
  
+	 // Обновление недельных данных
 	 weeklyField := "earning"
 	 if updateType == "expenses" {
 		 weeklyField = "spent"
 	 }
  
-	 _, err = db.Exec(fmt.Sprintf(`
+	 if _, err := tx.ExecContext(ctx, fmt.Sprintf(`
 		 UPDATE charts 
-		 SET %s = jsonb_set(%s, '{%d}', to_jsonb($1::bigint + (%s->>'%d')::bigint))
+		 SET %s = jsonb_set(%s, '{%d}', to_jsonb($1::bigint + (%s->>'%d')::bigint)
 		 WHERE id = 1
-	 `, weeklyField, weeklyField, weekday, weeklyField, weekday), value)
-	 if err != nil {
-		 log.Println("Ошибка обновления недельных данных графиков:", err)
+	 `, weeklyField, weeklyField, weekday, weeklyField, weekday), value); err != nil {
+		 return fmt.Errorf("недельные данные: %v", err)
 	 }
+ 
+	 return nil
  }
  
- /**
-  * Получение данных графиков
-  */
+ func saveHistoryRecord(ctx context.Context, tx *sql.Tx, update struct {
+	 Type          string
+	 Value         int64
+	 IsIncremental bool
+ }) error {
+	 record := HistoryRecord{
+		 Type:          update.Type,
+		 Value:         update.Value,
+		 IsIncremental: update.IsIncremental,
+		 Timestamp:     time.Now(),
+	 }
+ 
+	 jsonData, err := json.Marshal(record)
+	 if err != nil {
+		 return fmt.Errorf("ошибка маршалинга истории: %v", err)
+	 }
+ 
+	 _, err = tx.ExecContext(ctx, `
+		 INSERT INTO card_history (card_id, data) 
+		 VALUES (1, $1)
+	 `, jsonData)
+	 return err
+ }
+ 
  func getChartsData(w http.ResponseWriter, r *http.Request) {
+	 if r.Method != "GET" {
+		 http.Error(w, "Метод не разрешен", http.StatusMethodNotAllowed)
+		 return
+	 }
+ 
 	 mu.Lock()
 	 defer mu.Unlock()
  
 	 var data ChartData
 	 var months, income, expenses, days, earning, spent []byte
  
-	 err := db.QueryRow(`
+	 err := db.QueryRowContext(r.Context(), `
 		 SELECT months, income, expenses, days, earning, spent
 		 FROM charts
 		 ORDER BY updated_at DESC
@@ -413,24 +546,38 @@
 	 `).Scan(&months, &income, &expenses, &days, &earning, &spent)
  
 	 if err != nil {
-		 http.Error(w, "Ошибка получения данных графиков: "+err.Error(), http.StatusInternalServerError)
+		 respondError(w, "Ошибка получения данных графиков", err, http.StatusInternalServerError)
 		 return
 	 }
  
-	 json.Unmarshal(months, &data.Months)
-	 json.Unmarshal(income, &data.Income)
-	 json.Unmarshal(expenses, &data.Expenses)
-	 json.Unmarshal(days, &data.Days)
-	 json.Unmarshal(earning, &data.Earning)
-	 json.Unmarshal(spent, &data.Spent)
+	 if err := json.Unmarshal(months, &data.Months); err != nil {
+		 respondError(w, "Ошибка разбора месяцев", err, http.StatusInternalServerError)
+		 return
+	 }
+	 if err := json.Unmarshal(income, &data.Income); err != nil {
+		 respondError(w, "Ошибка разбора доходов", err, http.StatusInternalServerError)
+		 return
+	 }
+	 if err := json.Unmarshal(expenses, &data.Expenses); err != nil {
+		 respondError(w, "Ошибка разбора расходов", err, http.StatusInternalServerError)
+		 return
+	 }
+	 if err := json.Unmarshal(days, &data.Days); err != nil {
+		 respondError(w, "Ошибка разбора дней", err, http.StatusInternalServerError)
+		 return
+	 }
+	 if err := json.Unmarshal(earning, &data.Earning); err != nil {
+		 respondError(w, "Ошибка разбора доходов по дням", err, http.StatusInternalServerError)
+		 return
+	 }
+	 if err := json.Unmarshal(spent, &data.Spent); err != nil {
+		 respondError(w, "Ошибка разбора расходов по дням", err, http.StatusInternalServerError)
+		 return
+	 }
  
-	 w.Header().Set("Content-Type", "application/json")
-	 json.NewEncoder(w).Encode(data)
+	 respondJSON(w, data)
  }
  
- /**
-  * Сброс всех данных
-  */
  func resetCardsData(w http.ResponseWriter, r *http.Request) {
 	 if r.Method != "POST" {
 		 http.Error(w, "Метод не разрешен", http.StatusMethodNotAllowed)
@@ -440,44 +587,56 @@
 	 mu.Lock()
 	 defer mu.Unlock()
  
-	 _, err := db.Exec("UPDATE cards SET savings = 0, income = 0, expenses = 0")
+	 tx, err := db.BeginTx(r.Context(), nil)
 	 if err != nil {
-		 http.Error(w, "Ошибка сброса данных карточек: "+err.Error(), http.StatusInternalServerError)
+		 respondError(w, "Ошибка начала транзакции", err, http.StatusInternalServerError)
+		 return
+	 }
+	 defer tx.Rollback()
+ 
+	 if _, err := tx.ExecContext(r.Context(), "UPDATE cards SET savings = 0, income = 0, expenses = 0"); err != nil {
+		 respondError(w, "Ошибка сброса карточек", err, http.StatusInternalServerError)
 		 return
 	 }
  
-	 _, err = db.Exec(`
+	 if _, err := tx.ExecContext(r.Context(), `
 		 UPDATE charts 
 		 SET 
-			 income = '[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]',
-			 expenses = '[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]',
-			 earning = '[0, 0, 0, 0, 0, 0, 0]',
-			 spent = '[0, 0, 0, 0, 0, 0, 0]'
+			 income = '[0,0,0,0,0,0,0,0,0,0,0,0]',
+			 expenses = '[0,0,0,0,0,0,0,0,0,0,0,0]',
+			 earning = '[0,0,0,0,0,0,0]',
+			 spent = '[0,0,0,0,0,0,0]'
 		 WHERE id = 1
-	 `)
-	 if err != nil {
-		 log.Println("Ошибка сброса данных графиков:", err)
+	 `); err != nil {
+		 respondError(w, "Ошибка сброса графиков", err, http.StatusInternalServerError)
+		 return
 	 }
  
-	 w.WriteHeader(http.StatusOK)
-	 w.Write([]byte("Все данные успешно сброшены"))
+	 if err := tx.Commit(); err != nil {
+		 respondError(w, "Ошибка коммита транзакции", err, http.StatusInternalServerError)
+		 return
+	 }
+ 
+	 respondSuccess(w, "Все данные успешно сброшены")
  }
  
- /**
-  * Получение истории изменений
-  */
  func getHistoryData(w http.ResponseWriter, r *http.Request) {
+	 if r.Method != "GET" {
+		 http.Error(w, "Метод не разрешен", http.StatusMethodNotAllowed)
+		 return
+	 }
+ 
 	 mu.Lock()
 	 defer mu.Unlock()
  
-	 rows, err := db.Query(`
+	 rows, err := db.QueryContext(r.Context(), `
 		 SELECT data 
 		 FROM card_history 
 		 ORDER BY changed_at DESC
 		 LIMIT 100
 	 `)
 	 if err != nil {
-		 http.Error(w, "Ошибка получения истории: "+err.Error(), http.StatusInternalServerError)
+		 respondError(w, "Ошибка получения истории", err, http.StatusInternalServerError)
 		 return
 	 }
 	 defer rows.Close()
@@ -488,18 +647,41 @@
 		 var record HistoryRecord
  
 		 if err := rows.Scan(&jsonData); err != nil {
-			 log.Println("Ошибка сканирования истории:", err)
+			 log.Printf("Ошибка сканирования истории: %v", err)
 			 continue
 		 }
  
 		 if err := json.Unmarshal(jsonData, &record); err != nil {
-			 log.Println("Ошибка разбора JSON истории:", err)
+			 log.Printf("Ошибка разбора JSON истории: %v", err)
 			 continue
 		 }
  
 		 history = append(history, record)
 	 }
  
+	 if err := rows.Err(); err != nil {
+		 respondError(w, "Ошибка обработки истории", err, http.StatusInternalServerError)
+		 return
+	 }
+ 
+	 respondJSON(w, history)
+ }
+ 
+ // ==================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ====================
+ 
+ func respondJSON(w http.ResponseWriter, data interface{}) {
 	 w.Header().Set("Content-Type", "application/json")
-	 json.NewEncoder(w).Encode(history)
+	 if err := json.NewEncoder(w).Encode(data); err != nil {
+		 log.Printf("Ошибка кодирования JSON: %v", err)
+	 }
+ }
+ 
+ func respondError(w http.ResponseWriter, message string, err error, statusCode int) {
+	 log.Printf("%s: %v", message, err)
+	 http.Error(w, fmt.Sprintf("%s: %v", message, err), statusCode)
+ }
+ 
+ func respondSuccess(w http.ResponseWriter, message string) {
+	 w.WriteHeader(http.StatusOK)
+	 w.Write([]byte(message))
  }
