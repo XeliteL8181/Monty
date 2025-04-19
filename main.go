@@ -16,6 +16,7 @@
 	 "os/signal"
 	 "sync"
 	 "syscall"
+	 "strings"
 	 "time"
  
 	 _ "github.com/lib/pq" // Драйвер PostgreSQL
@@ -131,25 +132,43 @@
 	 _, err := db.ExecContext(ctx, query)
 	 return err
  }
+
+	// Главный обработчик
+type handler struct {
+    mux *http.ServeMux
+}
+func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+    // Сначала проверяем API пути
+    if strings.HasPrefix(r.URL.Path, "/api") {
+        h.mux.ServeHTTP(w, r)
+        return
+    }
+    
+    // Все остальное - статические файлы
+    http.FileServer(http.Dir("static")).ServeHTTP(w, r)
+}
  
  // Запуск HTTP сервера
  func startServer(ctx context.Context) {
-	 router := http.NewServeMux()
-	 
-	 // API endpoints
-	 router.HandleFunc("/api/cards", getCardsData)
-	 router.HandleFunc("/api/cards/update", updateCardsData)
-	 router.HandleFunc("/api/charts", getChartsData)
-	 
-	 // Статические файлы
-	 router.Handle("/", http.FileServer(http.Dir("static")))
- 
-	 server := &http.Server{
-		 Addr:         ":" + getPort(),
-		 Handler:      router,
-		 ReadTimeout:  serverTimeout,
-		 WriteTimeout: serverTimeout,
-	 }
+	router := http.NewServeMux()
+
+    // 1. Сначала API endpoints
+    router.HandleFunc("/api/cards", getCardsData)
+    router.HandleFunc("/api/cards/update", updateCardsData)
+    router.HandleFunc("/api/charts", getChartsData)
+
+    // 2. Затем статические файлы
+    fs := http.FileServer(http.Dir("static"))
+    
+    // Обработка всех остальных запросов
+    router.Handle("/", fs)
+
+    server := &http.Server{
+        Addr:         ":" + getPort(),
+        Handler:      router,
+        ReadTimeout:  serverTimeout,
+        WriteTimeout: serverTimeout,
+    }
  
 	 go func() {
 		 log.Printf("Сервер запущен на порту %s", getPort())
