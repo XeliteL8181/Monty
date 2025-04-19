@@ -122,7 +122,7 @@
 	 if connStr := os.Getenv("DATABASE_URL"); connStr != "" {
 		 return connStr
 	 }
-	 return "postgres://finance_user:your_password@localhost:5432/finance_db?sslmode=disable"
+	 return "postgres://financce_user:your_password@localhost:5432/finance_db?sslmode=disable"
  }
  
  func configureDBPool() {
