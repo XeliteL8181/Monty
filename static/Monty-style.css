@@ -763,6 +763,32 @@
   .custom-rect {
     color: var(--color-antracit-grey);
   }
+
+  .alert {
+    padding: 15px 20px;
+    border-radius: 8px;
+    color: white;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    max-width: 300px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    transition: all 0.3s ease;
+    transform: translateX(0);
+    opacity: 1;
+}
+
+.alert.success { background: #4CAF50; }
+.alert.error { background: #F44336; }
+.alert.warning { background: #FF9800; }
+.alert.info { background: #2196F3; }
+
+.alert-close {
+    margin-left: auto;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 18px;
+}
   
   footer {
     text-align: center;

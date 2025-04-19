@@ -674,26 +674,45 @@ function formatCurrency(value) {
 
 // Уведомления
 function showAlert(message, type = 'info') {
-    const div = document.createElement('div');
-    div.className = `alert alert-${type}`;
-    div.textContent = message;
-    div.style.position = 'fixed';
-    div.style.top = '20px';
-    div.style.right = '20px';
-    div.style.padding = '10px 20px';
-    div.style.borderRadius = '4px';
-    div.style.color = 'white';
-    div.style.zIndex = '1000';
-    div.style.animation = 'fadeIn 0.3s';
+    const alertContainer = document.getElementById('alert-container') || createAlertContainer();
+    const alert = document.createElement('div');
     
-    if (type === 'error') div.style.background = '#dc3545';
-    else if (type === 'success') div.style.background = '#28a745';
-    else if (type === 'warning') div.style.background = '#ffc107';
-    else div.style.background = '#17a2b8';
+    alert.className = `alert ${type}`;
+    alert.innerHTML = `
+        <div class="alert-icon">${getIconForType(type)}</div>
+        <div class="alert-message">${message}</div>
+        <div class="alert-close" onclick="this.parentElement.remove()">&times;</div>
+    `;
 
-    document.body.appendChild(div);
+    alertContainer.appendChild(alert);
+    
+    // Автоматическое скрытие через 5 секунд
     setTimeout(() => {
-        div.style.animation = 'fadeOut 0.3s';
-        setTimeout(() => div.remove(), 300);
-    }, 3000);
+        alert.style.opacity = '0';
+        setTimeout(() => alert.remove(), 300);
+    }, 5000);
+}
+
+function createAlertContainer() {
+    const container = document.createElement('div');
+    container.id = 'alert-container';
+    container.style.position = 'fixed';
+    container.style.top = '20px';
+    container.style.right = '20px';
+    container.style.zIndex = '1000';
+    container.style.display = 'flex';
+    container.style.flexDirection = 'column';
+    container.style.gap = '10px';
+    document.body.appendChild(container);
+    return container;
+}
+
+function getIconForType(type) {
+    const icons = {
+        success: '✓',
+        error: '✕',
+        warning: '⚠',
+        info: 'i'
+    };
+    return icons[type] || icons.info;
 }
