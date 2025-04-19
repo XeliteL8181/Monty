@@ -104,7 +104,7 @@ async function updateSavings() {
         await loadCardsData();
         showAlert('Накопления обновлены', 'success');
     } catch (err) {
-        showAlert('Ошибка обновления', 'error');
+        showAlert('Ошибка обновления накоплений', 'error');
     }
 }
 
@@ -133,9 +133,9 @@ async function addIncome() {
         if (!res.ok) throw new Error('Ошибка запроса');
         elements.income.input.value = '';
         await Promise.all([loadCardsData(), loadChartsData()]);
-        showAlert('Доход добавлен', 'success');
+        showAlert('Доходы обновлены', 'success');
     } catch (err) {
-        showAlert('Ошибка добавления дохода', 'error');
+        showAlert('Ошибка обновления доходов', 'error');
     }
 }
 
@@ -164,9 +164,9 @@ async function addExpense() {
         if (!res.ok) throw new Error('Ошибка запроса');
         elements.expenses.input.value = '';
         await Promise.all([loadCardsData(), loadChartsData()]);
-        showAlert('Расход добавлен', 'success');
+        showAlert('Расходы обновлены', 'success');
     } catch (err) {
-        showAlert('Ошибка добавления расхода', 'error');
+        showAlert('Ошибка обновления расходов', 'error');
     }
 }
 
