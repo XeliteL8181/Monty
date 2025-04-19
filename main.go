@@ -133,22 +133,6 @@ func createTables(ctx context.Context) error {
 	return err
 }
 
-// Главный обработчик
-type handler struct {
-	mux *http.ServeMux
-}
-
-func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	// Сначала проверяем API пути
-	if strings.HasPrefix(r.URL.Path, "/api") {
-		h.mux.ServeHTTP(w, r)
-		return
-	}
-
-	// Все остальное - статические файлы
-	http.FileServer(http.Dir("static")).ServeHTTP(w, r)
-}
-
 // Запуск HTTP сервера
 func startServer(ctx context.Context) {
 	router := http.NewServeMux()
