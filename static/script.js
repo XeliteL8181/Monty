@@ -1,6 +1,6 @@
 /**
  * Файл: static/script.js
- * Основной скрипт фронтенда для финансового приложения
+ * Основной скрипт фронтенда для финансового приложения с улучшенным визуалом
  */
 
 // Базовый путь API (относительно корня сайта)
@@ -8,6 +8,16 @@ const API_BASE_URL = '';
 
 // Максимально допустимое значение
 const MAX_VALUE = 99999999;
+
+// Конфигурация графиков
+const chartsConfig = {
+  colors: {
+    income: '#78be20',
+    expenses: '#8c00ff',
+    grid: '#E5EDFF',
+    text: '#E5EDFF'
+  }
+};
 
 // DOM-элементы
 const elements = {
@@ -162,41 +172,441 @@ async function loadChartsData() {
 // Пустые графики при старте
 function initCharts() {
     Highcharts.chart('chart-year', {
-        title: { text: '' },
-        series: [{ name: 'Доходы', data: [] }, { name: 'Расходы', data: [] }]
+        chart: {
+            type: 'spline',
+            backgroundColor: '#2c2c34',
+            spacing: [20, 20, 20, 20],
+            className: 'spline-chart',
+            animation: false
+        },
+        title: { text: null },
+        credits: { enabled: false },
+        legend: { enabled: false },
+        xAxis: {
+            lineColor: chartsConfig.colors.grid,
+            tickLength: 0,
+            labels: {
+                style: { 
+                    color: chartsConfig.colors.text,
+                    fontSize: '16px'
+                }
+            }
+        },
+        yAxis: {
+            title: { text: null },
+            gridLineColor: chartsConfig.colors.grid,
+            labels: {
+                formatter: function() { 
+                    return this.value.toLocaleString() + ' ₽'; 
+                },
+                style: { 
+                    color: chartsConfig.colors.text,
+                    fontSize: '16px'
+                }
+            }
+        },
+        plotOptions: {
+            series: {
+                marker: { enabled: false },
+                lineWidth: 5,
+                states: {
+                    hover: {
+                        lineWidth: 6,
+                        halo: false
+                    },
+                    inactive: {
+                        opacity: 0.2
+                    }
+                },
+                events: {
+                    mouseOver() {
+                        this.chart.series.forEach(s => {
+                            s.update({ opacity: s === this ? 1 : 0.2 }, false);
+                        });
+                    }
+                }
+            }
+        },
+        series: [{ name: 'Доходы', data: [] }, { name: 'Расходы', data: [] }],
+        tooltip: {
+            shared: false,
+            useHTML: true,
+            backgroundColor: 'transparent',
+            borderWidth: 0,
+            style: { padding: '0' },
+            formatter: function() {
+                updateTooltipColor(this.series.color);
+                return `
+                <div style="
+                    color: ${chartsConfig.colors.text};
+                    padding: 8px 12px;
+                    background: ${this.series.color};
+                    border-radius: 4px;
+                    font-family: inherit;
+                    font-size: 16px;
+                ">
+                    ${this.series.name}: <b>${this.y.toLocaleString()} ₽</b>
+                </div>
+                `;
+            }
+        }
     });
 
     Highcharts.chart('activity-chart', {
-        chart: { type: 'column' },
-        title: { text: '' },
-        series: [{ name: 'Доходы', data: [] }, { name: 'Расходы', data: [] }]
+        chart: {
+            type: 'column',
+            backgroundColor: '#2c2c34',
+            spacing: [20, 20, 20, 20],
+            className: 'column-chart',
+            animation: false
+        },
+        title: { 
+            text: '',
+            style: {
+                color: chartsConfig.colors.text,
+                fontSize: '16px'
+            }
+        },
+        credits: { enabled: false },
+        legend: { enabled: false },
+        xAxis: {
+            lineColor: chartsConfig.colors.grid,
+            tickLength: 0,
+            labels: {
+                style: { 
+                    color: chartsConfig.colors.text,
+                    fontSize: '16px'
+                }
+            }
+        },
+        yAxis: {
+            title: { text: null },
+            gridLineColor: chartsConfig.colors.grid,
+            labels: {
+                formatter: function() { 
+                    return this.value.toLocaleString() + ' ₽'; 
+                },
+                style: { 
+                    color: chartsConfig.colors.text,
+                    fontSize: '16px'
+                }
+            }
+        },
+        plotOptions: {
+            column: {
+                borderRadius: 4,
+                pointWidth: 16,
+                grouping: false
+            },
+            series: {
+                states: {
+                    hover: {
+                        brightness: 0.1
+                    },
+                    inactive: {
+                        opacity: 0.2
+                    }
+                },
+                events: {
+                    mouseOver() {
+                        this.chart.series.forEach(s => {
+                            s.update({ opacity: s === this ? 1 : 0.2 }, false);
+                        });
+                    }
+                }
+            }
+        },
+        series: [{ name: 'Доходы', data: [] }, { name: 'Расходы', data: [] }],
+        tooltip: {
+            shared: false,
+            useHTML: true,
+            backgroundColor: 'transparent',
+            borderWidth: 0,
+            style: { padding: '0' },
+            formatter: function() {
+                updateTooltipColor(this.series.color);
+                return `
+                <div style="
+                    color: ${chartsConfig.colors.text};
+                    padding: 8px 12px;
+                    background: ${this.series.color};
+                    border-radius: 4px;
+                    font-family: inherit;
+                    font-size: 16px;
+                ">
+                    ${this.series.name}: <b>${this.y.toLocaleString()} ₽</b>
+                </div>
+                `;
+            }
+        }
     });
 }
 
 // Отрисовка графиков
 function renderCharts(data) {
-    Highcharts.chart('chart-year', {
-        title: { text: '' },
-        xAxis: { categories: data.months },
-        yAxis: { title: { text: '₽' } },
-        series: [
-            { name: 'Доходы', data: data.income, color: '#28a745' },
-            { name: 'Расходы', data: data.expenses, color: '#dc3545' }
-        ]
-    });
-
-    Highcharts.chart('activity-chart', {
-        chart: { type: 'column' },
-        xAxis: { categories: data.days },
-        yAxis: { title: { text: '₽' } },
+    // График по месяцам
+    const financialChart = Highcharts.chart('chart-year', {
+        chart: {
+            type: 'spline',
+            backgroundColor: '#2c2c34',
+            spacing: [20, 20, 20, 20],
+            className: 'spline-chart',
+            animation: false
+        },
+        title: { text: null },
+        credits: { enabled: false },
+        legend: { enabled: false },
+        xAxis: {
+            categories: data.months,
+            lineColor: chartsConfig.colors.grid,
+            tickLength: 0,
+            labels: {
+                style: { 
+                    color: chartsConfig.colors.text,
+                    fontSize: '16px'
+                }
+            }
+        },
+        yAxis: {
+            title: { text: null },
+            gridLineColor: chartsConfig.colors.grid,
+            labels: {
+                formatter: function() { 
+                    return this.value.toLocaleString() + ' ₽'; 
+                },
+                style: { 
+                    color: chartsConfig.colors.text,
+                    fontSize: '16px'
+                }
+            }
+        },
         plotOptions: {
-            column: { grouping: false, shadow: false, borderWidth: 0 }
+            series: {
+                marker: { enabled: false },
+                lineWidth: 5,
+                states: {
+                    hover: {
+                        lineWidth: 6,
+                        halo: false
+                    },
+                    inactive: {
+                        opacity: 0.2
+                    }
+                },
+                events: {
+                    mouseOver() {
+                        this.chart.series.forEach(s => {
+                            s.update({ opacity: s === this ? 1 : 0.2 }, false);
+                        });
+                    }
+                }
+            }
         },
         series: [
-            { name: 'Доходы', data: data.earning, color: '#28a745', pointPadding: 0.1, pointPlacement: -0.2 },
-            { name: 'Расходы', data: data.spent, color: '#dc3545', pointPadding: 0.1, pointPlacement: 0.2 }
-        ]
+            { 
+                name: 'Доходы', 
+                data: data.income, 
+                color: chartsConfig.colors.income 
+            },
+            { 
+                name: 'Расходы', 
+                data: data.expenses, 
+                color: chartsConfig.colors.expenses 
+            }
+        ],
+        tooltip: {
+            shared: false,
+            useHTML: true,
+            backgroundColor: 'transparent',
+            borderWidth: 0,
+            style: { padding: '0' },
+            formatter: function() {
+                updateTooltipColor(this.series.color);
+                return `
+                <div style="
+                    color: ${chartsConfig.colors.text};
+                    padding: 8px 12px;
+                    background: ${this.series.color};
+                    border-radius: 4px;
+                    font-family: inherit;
+                    font-size: 16px;
+                ">
+                    ${this.series.name}: <b>${this.y.toLocaleString()} ₽</b>
+                </div>
+                `;
+            }
+        }
     });
+
+    // График активности
+    const activityChart = Highcharts.chart('activity-chart', {
+        chart: {
+            type: 'column',
+            backgroundColor: '#2c2c34',
+            spacing: [20, 20, 20, 20],
+            className: 'column-chart',
+            animation: false
+        },
+        title: { 
+            text: '',
+            style: {
+                color: chartsConfig.colors.text,
+                fontSize: '16px'
+            }
+        },
+        credits: { enabled: false },
+        legend: { enabled: false },
+        xAxis: {
+            categories: data.days,
+            lineColor: chartsConfig.colors.grid,
+            tickLength: 0,
+            labels: {
+                style: { 
+                    color: chartsConfig.colors.text,
+                    fontSize: '16px'
+                }
+            }
+        },
+        yAxis: {
+            title: { text: null },
+            gridLineColor: chartsConfig.colors.grid,
+            labels: {
+                formatter: function() { 
+                    return this.value.toLocaleString() + ' ₽'; 
+                },
+                style: { 
+                    color: chartsConfig.colors.text,
+                    fontSize: '16px'
+                }
+            }
+        },
+        plotOptions: {
+            column: {
+                borderRadius: 4,
+                pointWidth: 16,
+                grouping: false
+            },
+            series: {
+                states: {
+                    hover: {
+                        brightness: 0.1
+                    },
+                    inactive: {
+                        opacity: 0.2
+                    }
+                },
+                events: {
+                    mouseOver() {
+                        this.chart.series.forEach(s => {
+                            s.update({ opacity: s === this ? 1 : 0.2 }, false);
+                        });
+                    }
+                }
+            }
+        },
+        series: [
+            { 
+                name: 'Доходы', 
+                data: data.earning, 
+                color: chartsConfig.colors.income,
+                pointPadding: 0.1, 
+                pointPlacement: -0.2 
+            },
+            { 
+                name: 'Расходы', 
+                data: data.spent, 
+                color: chartsConfig.colors.expenses,
+                pointPadding: 0.1, 
+                pointPlacement: 0.2 
+            }
+        ],
+        tooltip: {
+            shared: false,
+            useHTML: true,
+            backgroundColor: 'transparent',
+            borderWidth: 0,
+            style: { padding: '0' },
+            formatter: function() {
+                updateTooltipColor(this.series.color);
+                return `
+                <div style="
+                    color: ${chartsConfig.colors.text};
+                    padding: 8px 12px;
+                    background: ${this.series.color};
+                    border-radius: 4px;
+                    font-family: inherit;
+                    font-size: 16px;
+                ">
+                    ${this.series.name}: <b>${this.y.toLocaleString()} ₽</b>
+                </div>
+                `;
+            }
+        }
+    });
+
+    // Создание легенд для обоих графиков
+    financialChart.series.forEach(series => {
+        const legendId = series.name === 'Доходы' ? 'income-legend' : 'expenses-legend';
+        const item = createLegendItem(series, legendId);
+        
+        if (item) {
+            item.addEventListener('mouseleave', () => resetChart(financialChart));
+        }
+    });
+
+    activityChart.series.forEach(series => {
+        const legendId = series.name === 'Доходы' ? 'activity-income-legend' : 'activity-expenses-legend';
+        const item = createLegendItem(series, legendId);
+        
+        if (item) {
+            item.addEventListener('mouseleave', () => resetChart(activityChart));
+        }
+    });
+
+    // Обработчики для сброса графиков
+    [financialChart, activityChart].forEach(chart => {
+        chart.renderTo.addEventListener('mouseleave', () => resetChart(chart));
+    });
+}
+
+// Общие функции для работы с графиками
+function updateTooltipColor(color) {
+    document.documentElement.style.setProperty('--tooltip-color', color);
+}
+
+function resetChart(chart) {
+    chart.series.forEach(s => {
+        s.setState('');
+        s.update({ opacity: 1 }, false);
+    });
+    chart.redraw();
+}
+
+function createLegendItem(series, containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    const item = document.createElement('div');
+    item.className = 'legend-item';
+    item.style.cursor = 'pointer';
+
+    item.innerHTML = `
+        <div class="legend-color" style="background:${series.color}"></div>
+        <span>${series.name}</span>
+    `;
+
+    item.addEventListener('click', function() {
+        if (series.visible) {
+            series.hide();
+            this.classList.add('disabled');
+        } else {
+            series.show();
+            this.classList.remove('disabled');
+        }
+    });
+
+    container.appendChild(item);
+    return item;
 }
 
 // Формат валюты
