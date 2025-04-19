@@ -152,16 +152,14 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
  func startServer(ctx context.Context) {
 	router := http.NewServeMux()
 
-    // 1. Сначала API endpoints
+    // Обработка статических файлов
+    fs := http.FileServer(http.Dir("static"))
+    router.Handle("/", fs) // Все запросы будут обрабатываться из папки static
+
+    // API endpoints
     router.HandleFunc("/api/cards", getCardsData)
     router.HandleFunc("/api/cards/update", updateCardsData)
     router.HandleFunc("/api/charts", getChartsData)
-
-    // 2. Затем статические файлы
-    fs := http.FileServer(http.Dir("static"))
-    
-    // Обработка всех остальных запросов
-    router.Handle("/", fs)
 
     server := &http.Server{
         Addr:         ":" + getPort(),
