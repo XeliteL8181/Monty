@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: monty-finance
+    env: go
+    region: frankfurt
+    build:
+      command: go build -o monty
+    start:
+      command: ./monty
+    envVars:
+      - key: PORT
+        value: 10000
+    databases:
+      - name: monty-db
+        databaseName: finance_db
+        user: finance_user
