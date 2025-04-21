@@ -87,32 +87,31 @@ func handleShutdown(cancel context.CancelFunc) {
 
 // Инициализация подключения к БД
 func initDB() error {
-	connStr := fmt.Sprintf(
-        "postgres://%s:%s@%s:%d/%s?sslmode=require",
-        os.Getenv("finance_user"), 
-        os.Getenv("postgres"),
-        os.Getenv("dpg-d038phili9vc73eo1620-a.frankfurt-postgres.render.com"),
-        5432,
-        os.Getenv("finance_db_r0mf"), 
-    )
-	connStr += "&client_encoding=utf8"
-
-    // Подключаемся с таймаутом
-    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-    defer cancel()
-    
-    db, err := sql.Open("postgres", connStr)
-    if err != nil {
-        return fmt.Errorf("connection error: %v", err)
-    }
-
-    // Проверяем подключение
-    if err := db.PingContext(ctx); err != nil {
-        return fmt.Errorf("ping failed: %v", err)
-    }
-
-    log.Println("✅ Database connection established")
-    return nil
+    // Получаем параметры из переменных окружения Render
+	dbHost := os.Getenv("dpg-d038phili9vc73eo1620-a.frankfurt-postgres.render.com")
+	dbUser := os.Getenv("finance_user")
+	dbPass := os.Getenv("postgres")
+	dbName := os.Getenv("finance_db_r0mf")
+	  
+	// Формируем строку подключения
+	connStr := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=5432 sslmode=require",
+		dbHost, dbUser, dbPass, dbName)
+  
+	db, err := sql.Open("postgres", connStr)
+	if err != nil {
+		return fmt.Errorf("DB open error: %v", err)
+	}
+  
+	// Проверка с 3 попытками и задержкой
+	for i := 0; i < 3; i++ {
+		err = db.Ping()
+		if err == nil {
+			break
+		}
+		time.Sleep(2 * time.Second)
+	}
+	 
+	return err
 }
 
 // Создание таблиц в БД
