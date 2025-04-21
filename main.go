@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"os/signal"
@@ -289,15 +290,14 @@ func updateCardsData(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if request.Value < 0 || request.Value > maxValue {
-		http.Error(w, "Недопустимое значение", http.StatusBadRequest)
+	if request.Value < 0 || request.Value > maxValue || float64(request.Value) != math.Trunc(float64(request.Value)) {
+		http.Error(w, "Недопустимое значение (число должно быть целым, и находиться в диапозоне от 0 до 99999999)", http.StatusBadRequest)
 		return
 	}
 
 	mu.Lock()
 	defer mu.Unlock()
 
-	// Обновление данных в БД
 	var query string
 	switch request.Type {
 	case "savings":
@@ -308,8 +308,10 @@ func updateCardsData(w http.ResponseWriter, r *http.Request) {
 		}
 	case "income":
 		query = "UPDATE cards SET income = income + $1"
+		go updateChartData(r.Context(), "income", request.Value)
 	case "expenses":
 		query = "UPDATE cards SET expenses = expenses + $1"
+		go updateChartData(r.Context(), "expenses", request.Value)
 	default:
 		http.Error(w, "Неверный тип операции", http.StatusBadRequest)
 		return
@@ -322,6 +324,61 @@ func updateCardsData(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Данные обновлены"))
+}
+
+// Новая функция для обновления данных графиков
+func updateChartData(ctx context.Context, operationType string, value int64) {
+	mu.Lock()
+	defer mu.Unlock()
+
+	now := time.Now()
+	month := int(now.Month()) - 1 // 0-11
+	day := int(now.Weekday())     // 0-6 (воскресенье = 0)
+
+	// Корректируем день недели (чтобы понедельник был 0)
+	if day == 0 {
+		day = 6
+	} else {
+		day--
+	}
+
+	var query string
+	if operationType == "income" {
+		query = `
+            UPDATE charts 
+            SET 
+                income = jsonb_set(
+                    income, 
+                    array[$1::text], 
+                    (COALESCE(income->>$1::text, '0')::bigint + $2)::text::jsonb
+                ),
+                earning = jsonb_set(
+                    earning, 
+                    array[$3::text], 
+                    (COALESCE(earning->>$3::text, '0')::bigint + $2)::text::jsonb
+                )
+        `
+	} else {
+		query = `
+            UPDATE charts 
+            SET 
+                expenses = jsonb_set(
+                    expenses, 
+                    array[$1::text], 
+                    (COALESCE(expenses->>$1::text, '0')::bigint + $2)::text::jsonb
+                ),
+                spent = jsonb_set(
+                    spent, 
+                    array[$3::text], 
+                    (COALESCE(spent->>$3::text, '0')::bigint + $2)::text::jsonb
+                )
+        `
+	}
+
+	_, err := db.ExecContext(ctx, query, month, value, day)
+	if err != nil {
+		log.Printf("Ошибка обновления графиков: %v", err)
+	}
 }
 
 // Получение данных графиков

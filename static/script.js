@@ -138,8 +138,7 @@ async function addIncome() {
         });
         if (!res.ok) throw new Error('Ошибка запроса');
         elements.income.input.value = '';
-        await loadCardsData();
-        await loadChartsData();
+        await Promise.all([loadCardsData(), loadChartsData()]);
         showAlert('Доходы обновлены', 'success');
     } catch (err) {
         showAlert('Ошибка обновления доходов', 'error');
@@ -170,8 +169,7 @@ async function addExpense() {
         });
         if (!res.ok) throw new Error('Ошибка запроса');
         elements.expenses.input.value = '';
-        await loadCardsData();
-        await loadChartsData();
+        await Promise.all([loadCardsData(), loadChartsData()]);
         showAlert('Расходы обновлены', 'success');
     } catch (err) {
         showAlert('Ошибка обновления расходов', 'error');
@@ -219,7 +217,7 @@ function initCharts() {
             gridLineColor: chartsConfig.colors.grid,
             labels: {
                 formatter: function() { 
-                    return this.value.toLocaleString() + ' ₽'; 
+                    return Math.round(this.value).toLocaleString() + ' ₽'; 
                 },
                 style: { 
                     color: chartsConfig.colors.text,
@@ -313,7 +311,7 @@ function initCharts() {
             gridLineColor: chartsConfig.colors.grid,
             labels: {
                 formatter: function() { 
-                    return this.value.toLocaleString() + ' ₽'; 
+                    return Math.round(this.value).toLocaleString() + ' ₽'; 
                 },
                 style: { 
                     color: chartsConfig.colors.text,
@@ -675,8 +673,7 @@ function updateTooltipColor(color) {
 function formatCurrency(value) {
     return new Intl.NumberFormat('ru-RU', {
         style: 'decimal',
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
+        maximumFractionDigits: 0
     }).format(value);
 }
 
