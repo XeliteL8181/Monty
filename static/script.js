@@ -77,9 +77,15 @@ function updateCardsUI(data) {
     elements.balance.display.textContent = `${formatCurrency(data.balance)}₽`;
 }
 
+async function updateCharts() {
+    const response = await fetch('/api/charts');
+    const data = await response.json();
+    renderCharts(data); // Перерисовываем графики
+}
+
 // Обновить накопления
 async function updateSavings() {
-    const value = parseFloat(elements.savings.input.value);
+    const value = parseInt(elements.savings.input.value);
     if (isNaN(value)) {
         showAlert('Введите корректное число', 'warning');
         return;
@@ -110,7 +116,7 @@ async function updateSavings() {
 
 // Добавить доход
 async function addIncome() {
-    const value = parseFloat(elements.income.input.value);
+    const value = parseInt(elements.income.input.value);
     if (isNaN(value)) {
         showAlert('Введите корректное число', 'warning');
         return;
@@ -132,7 +138,8 @@ async function addIncome() {
         });
         if (!res.ok) throw new Error('Ошибка запроса');
         elements.income.input.value = '';
-        await Promise.all([loadCardsData(), loadChartsData()]);
+        await loadCardsData();
+        await loadChartsData();
         showAlert('Доходы обновлены', 'success');
     } catch (err) {
         showAlert('Ошибка обновления доходов', 'error');
@@ -141,7 +148,7 @@ async function addIncome() {
 
 // Добавить расход
 async function addExpense() {
-    const value = parseFloat(elements.expenses.input.value);
+    const value = parseInt(elements.expenses.input.value);
     if (isNaN(value)) {
         showAlert('Введите корректное число', 'warning');
         return;
@@ -163,7 +170,8 @@ async function addExpense() {
         });
         if (!res.ok) throw new Error('Ошибка запроса');
         elements.expenses.input.value = '';
-        await Promise.all([loadCardsData(), loadChartsData()]);
+        await loadCardsData();
+        await loadChartsData();
         showAlert('Расходы обновлены', 'success');
     } catch (err) {
         showAlert('Ошибка обновления расходов', 'error');

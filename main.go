@@ -16,10 +16,10 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
-	"strings"
 	"time"
 
-	_ "github.com/lib/pq" // Драйвер PostgreSQL
+	_ "github.com/lib/pq"
+	"github.com/robfig/cron/v3"
 )
 
 // Константы приложения
@@ -49,8 +49,9 @@ type ChartData struct {
 
 // Глобальные переменные
 var (
-	db *sql.DB
-	mu sync.Mutex
+	db            *sql.DB
+	mu            sync.Mutex
+	cronScheduler *cron.Cron
 )
 
 func main() {
@@ -73,6 +74,9 @@ func main() {
 		log.Printf("Ошибка создания таблиц: %v", err)
 	}
 
+	// Инициализация планировщика
+	initScheduler(ctx)
+
 	// Запуск сервера
 	startServer(ctx)
 }
@@ -86,29 +90,69 @@ func handleShutdown(cancel context.CancelFunc) {
 	cancel()
 }
 
-// Инициализация подключения к БД
+// Инициализация планировщика для сброса графиков
+func initScheduler(ctx context.Context) {
+	cronScheduler := cron.New()
+
+	// Сброс недельного графика каждый понедельник в 00:00
+	_, err := cronScheduler.AddFunc("0 0 * * 1", func() {
+		resetWeeklyChart(ctx)
+	})
+	if err != nil {
+		log.Printf("Ошибка добавления задачи сброса недельного графика: %v", err)
+	}
+
+	// Сброс годового графика 1 января в 00:00
+	_, err = cronScheduler.AddFunc("0 0 1 1 *", func() {
+		resetYearlyChart(ctx)
+	})
+	if err != nil {
+		log.Printf("Ошибка добавления задачи сброса годового графика: %v", err)
+	}
+
+	cronScheduler.Start()
+}
+
+// Сброс недельного графика
+func resetWeeklyChart(ctx context.Context) {
+	mu.Lock()
+	defer mu.Unlock()
+
+	_, err := db.ExecContext(ctx, `
+		 UPDATE charts 
+		 SET earning = '[0,0,0,0,0,0,0]', 
+			 spent = '[0,0,0,0,0,0,0]'
+	 `)
+	if err != nil {
+		log.Printf("Ошибка сброса недельного графика: %v", err)
+	}
+}
+
+// Сброс годового графика
+func resetYearlyChart(ctx context.Context) {
+	mu.Lock()
+	defer mu.Unlock()
+
+	_, err := db.ExecContext(ctx, `
+		 UPDATE charts 
+		 SET income = '[0,0,0,0,0,0,0,0,0,0,0,0]', 
+			 expenses = '[0,0,0,0,0,0,0,0,0,0,0,0]'
+	 `)
+	if err != nil {
+		log.Printf("Ошибка сброса годового графика: %v", err)
+	}
+}
+
+// Инициализация подключения к БД (локальная версия)
 func initDB() error {
-    // Получаем параметры из переменных окружения Render
-	dbHost := "dpg-d038phili9vc73eo1620-a.frankfurt-postgres.render.com"
-    dbUser := "finance_user"
-    dbPass := "Wl30OZ96lb64oaEfdptUdgmZQGhPsBC5" 
-    dbName := "finance_db_r0mf"
-    
-    // Формируем строку подключения
-    connStr := fmt.Sprintf(
-        "postgres://%s:%s@%s:5432/%s?sslmode=require",
-        dbUser,
-        dbPass,
-        dbHost,
-        dbName)
-    
-    log.Println("Используем строку подключения:", strings.Replace(connStr, dbPass, "****", 1))
-  
-	db, err := sql.Open("postgres", connStr)
+	connStr := "postgres://postgres:postgres@localhost:5432/finance_db?sslmode=disable"
+
+	var err error
+	db, err = sql.Open("postgres", connStr)
 	if err != nil {
 		return fmt.Errorf("DB open error: %v", err)
 	}
-  
+
 	// Проверка с 3 попытками и задержкой
 	for i := 0; i < 3; i++ {
 		err = db.Ping()
@@ -117,7 +161,7 @@ func initDB() error {
 		}
 		time.Sleep(2 * time.Second)
 	}
-	 
+
 	return err
 }
 
