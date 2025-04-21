@@ -87,23 +87,32 @@ func handleShutdown(cancel context.CancelFunc) {
 
 // Инициализация подключения к БД
 func initDB() error {
-	connStr := os.Getenv("DATABASE_URL")
-	if connStr == "" {
-		connStr = "postgres://finance_user:your_password@localhost:5432/finance_db?sslmode=disable"
-	}
+    // Получаем строку подключения из Render
+    connStr := os.Getenv("DATABASE_URL")
+    if connStr == "" {
+        return fmt.Errorf("DATABASE_URL not set")
+    }
 
-	var err error
-	db, err = sql.Open("postgres", connStr)
-	if err != nil {
-		return fmt.Errorf("ошибка подключения: %v", err)
-	}
+    var err error
+    db, err = sql.Open("postgres", connStr)
+    if err != nil {
+        return fmt.Errorf("failed to connect to database: %v", err)
+    }
 
-	// Настройка пула соединений
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(25)
-	db.SetConnMaxLifetime(5 * time.Minute)
+    // Настройки пула соединений
+    db.SetMaxOpenConns(25)
+    db.SetMaxIdleConns(25)
+    db.SetConnMaxLifetime(5 * time.Minute)
 
-	return db.Ping()
+    // Проверка подключения
+    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+    defer cancel()
+    if err := db.PingContext(ctx); err != nil {
+        return fmt.Errorf("database ping failed: %v", err)
+    }
+
+    log.Println("Successfully connected to PostgreSQL")
+    return nil
 }
 
 // Создание таблиц в БД
