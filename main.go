@@ -14,7 +14,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -88,36 +87,31 @@ func handleShutdown(cancel context.CancelFunc) {
 
 // Инициализация подключения к БД
 func initDB() error {
-    // Получаем строку подключения из Render
-    time.Sleep(5 * time.Second)
-    connStr := os.Getenv("DATABASE_URL")
-    if connStr == "" {
-        return fmt.Errorf("DATABASE_URL not set")
-    }
+	connStr := fmt.Sprintf(
+        "postgres://%s:%s@%s:%d/%s?sslmode=require",
+        os.Getenv("finance_user"), 
+        os.Getenv("postgres"),
+        os.Getenv("dpg-d038phili9vc73eo1620-a.frankfurt-postgres.render.com"),
+        5432,
+        os.Getenv("finance_db_r0mf"), 
+    )
+	connStr += "&client_encoding=utf8"
 
-	if !strings.Contains(connStr, "sslmode=") {
-        connStr += "?sslmode=require"
-    }
-
-    var err error
-    db, err = sql.Open("postgres", connStr)
-    if err != nil {
-        return fmt.Errorf("failed to connect to database: %v", err)
-    }
-
-    // Настройки пула соединений
-    db.SetMaxOpenConns(25)
-    db.SetMaxIdleConns(25)
-    db.SetConnMaxLifetime(5 * time.Minute)
-
-    // Проверка подключения
-    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+    // Подключаемся с таймаутом
+    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
     defer cancel()
-    if err := db.PingContext(ctx); err != nil {
-        return fmt.Errorf("database ping failed: %v", err)
+    
+    db, err := sql.Open("postgres", connStr)
+    if err != nil {
+        return fmt.Errorf("connection error: %v", err)
     }
 
-    log.Println("Successfully connected to PostgreSQL")
+    // Проверяем подключение
+    if err := db.PingContext(ctx); err != nil {
+        return fmt.Errorf("ping failed: %v", err)
+    }
+
+    log.Println("✅ Database connection established")
     return nil
 }
 

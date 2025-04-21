@@ -8,18 +8,28 @@ services:
     start:
       command: ./monty
     envVars:
-      - key: PORT
-        value: "10000"
-      - key: DATABASE_URL
+      - key: DB_USER
         fromDatabase:
           name: monty-db
-          property: connectionString
-        sync: false
-        value: "{{fromDatabase.connectionString}}?sslmode=require"
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: monty-db
+          property: password
+      - key: DB_HOST
+        fromDatabase:
+          name: monty-db
+          property: host
+      - key: DB_NAME
+        fromDatabase:
+          name: monty-db
+          property: database
+      - key: DB_PORT
+        value: "5432"
 
 databases:
   - name: monty-db
-    databaseName: finance_db
+    databaseName: finance_db_r0mf
     user: finance_user
     region: frankfurt
     plan: free
