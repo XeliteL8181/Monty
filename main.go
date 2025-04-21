@@ -88,7 +88,8 @@ func handleShutdown(cancel context.CancelFunc) {
 // Инициализация подключения к БД
 func initDB() error {
     // Получаем строку подключения из Render
-    connStr := os.Getenv("DATABASE_URL")
+    time.Sleep(5 * time.Second)
+    connStr := os.Getenv("DATABASE_URL") + "?sslmode=require"
     if connStr == "" {
         return fmt.Errorf("DATABASE_URL not set")
     }
