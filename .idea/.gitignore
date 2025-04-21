@@ -7,7 +7,7 @@
 /dataSources/
 /dataSources.local.xml
 DB_USER=finance_user
-DB_PASSWORD=postgres
+DB_PASSWORD=Wl30OZ96lb64oaEfdptUdgmZQGhPsBC5
 DB_HOST=dpg-d038phili9vc73eo1620-a.frankfurt-postgres.render.com
 DB_NAME=finance_db_r0mf
 DB_PORT=5432

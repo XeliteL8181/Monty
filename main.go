@@ -90,7 +90,7 @@ func initDB() error {
     // Получаем параметры из переменных окружения Render
 	dbHost := os.Getenv("dpg-d038phili9vc73eo1620-a.frankfurt-postgres.render.com")
 	dbUser := os.Getenv("finance_user")
-	dbPass := os.Getenv("postgres")
+	dbPass := os.Getenv("Wl30OZ96lb64oaEfdptUdgmZQGhPsBC5")
 	dbName := os.Getenv("finance_db_r0mf")
 	  
 	// Формируем строку подключения
