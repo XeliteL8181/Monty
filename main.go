@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -89,9 +90,13 @@ func handleShutdown(cancel context.CancelFunc) {
 func initDB() error {
     // Получаем строку подключения из Render
     time.Sleep(5 * time.Second)
-    connStr := os.Getenv("DATABASE_URL") + "?sslmode=require"
+    connStr := os.Getenv("DATABASE_URL")
     if connStr == "" {
         return fmt.Errorf("DATABASE_URL not set")
+    }
+
+	if !strings.Contains(connStr, "sslmode=") {
+        connStr += "?sslmode=require"
     }
 
     var err error
