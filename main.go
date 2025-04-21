@@ -90,7 +90,7 @@ func handleShutdown(cancel context.CancelFunc) {
 func initDB() error {
     // Получаем строку подключения из Render
     time.Sleep(5 * time.Second)
-    connStr := os.Getenv("DATABASE_URL")
+    connStr := "postgresql://finance_user:Lscr5PIoOfSqSrN15YloLtx9ltNZ5Uah@dpg-d02d7jre5dus73blnd80-a.frankfurt-postgres.render.com/finance_db_wj4c"
     if connStr == "" {
         return fmt.Errorf("DATABASE_URL not set")
     }
