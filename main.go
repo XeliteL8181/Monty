@@ -16,6 +16,7 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
+	"strings"
 	"time"
 
 	_ "github.com/lib/pq" // Драйвер PostgreSQL
@@ -88,14 +89,20 @@ func handleShutdown(cancel context.CancelFunc) {
 // Инициализация подключения к БД
 func initDB() error {
     // Получаем параметры из переменных окружения Render
-	dbHost := os.Getenv("dpg-d038phili9vc73eo1620-a.frankfurt-postgres.render.com")
-	dbUser := os.Getenv("finance_user")
-	dbPass := os.Getenv("Wl30OZ96lb64oaEfdptUdgmZQGhPsBC5")
-	dbName := os.Getenv("finance_db_r0mf")
-	  
-	// Формируем строку подключения
-	connStr := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=5432 sslmode=require",
-		dbHost, dbUser, dbPass, dbName)
+	dbHost := "dpg-d038phili9vc73eo1620-a.frankfurt-postgres.render.com"
+    dbUser := "finance_user"
+    dbPass := "Wl30OZ96lb64oaEfdptUdgmZQGhPsBC5" 
+    dbName := "finance_db_r0mf"
+    
+    // Формируем строку подключения
+    connStr := fmt.Sprintf(
+        "postgres://%s:%s@%s:5432/%s?sslmode=require",
+        dbUser,
+        dbPass,
+        dbHost,
+        dbName)
+    
+    log.Println("Используем строку подключения:", strings.Replace(connStr, dbPass, "****", 1))
   
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
