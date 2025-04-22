@@ -350,7 +350,7 @@ func updateCardsData(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Данные обновлены"))
 }
 
-// Новая функция для обновления данных графиков
+// Функция для обновления данных графиков
 func updateChartData(ctx context.Context, operationType string, value int64) {
 	mu.Lock()
 	defer mu.Unlock()
