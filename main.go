@@ -93,25 +93,26 @@ func handleShutdown(cancel context.CancelFunc) {
 
 // Инициализация планировщика для сброса графиков
 func initScheduler(ctx context.Context) {
-	cronScheduler := cron.New()
+    cronScheduler = cron.New()
 
-	// Сброс недельного графика каждый понедельник в 00:00
-	_, err := cronScheduler.AddFunc("0 0 * * 1", func() {
-		resetWeeklyChart(ctx)
-	})
-	if err != nil {
-		log.Printf("Ошибка добавления задачи сброса недельного графика: %v", err)
-	}
+    // Сброс недельного графика и обнуление доходов/расходов (с сохранением баланса) каждый понедельник в 00:00
+    _, err := cronScheduler.AddFunc("0 0 * * 1", func() {
+        resetWeeklyChart(ctx)
+        resetIncomeExpenses(ctx)
+    })
+    if err != nil {
+        log.Printf("Ошибка добавления задачи сброса недельного графика: %v", err)
+    }
 
-	// Сброс годового графика 1 января в 00:00
-	_, err = cronScheduler.AddFunc("0 0 1 1 *", func() {
-		resetYearlyChart(ctx)
-	})
-	if err != nil {
-		log.Printf("Ошибка добавления задачи сброса годового графика: %v", err)
-	}
+    // Сброс годового графика 1 января в 00:00
+    _, err = cronScheduler.AddFunc("0 0 1 1 *", func() {
+        resetYearlyChart(ctx)
+    })
+    if err != nil {
+        log.Printf("Ошибка добавления задачи сброса годового графика: %v", err)
+    }
 
-	cronScheduler.Start()
+    cronScheduler.Start()
 }
 
 // Сброс недельного графика
@@ -142,6 +143,29 @@ func resetYearlyChart(ctx context.Context) {
 	if err != nil {
 		log.Printf("Ошибка сброса годового графика: %v", err)
 	}
+}
+
+// Сброс доходов и расходов с сохранением баланса
+func resetIncomeExpenses(ctx context.Context) {
+    mu.Lock()
+    defer mu.Unlock()
+
+    // Получаем текущий баланс и накопления
+    var balance, savings int64
+    err := db.QueryRowContext(ctx, "SELECT balance, savings FROM cards ORDER BY last_updated DESC LIMIT 1").Scan(&balance, &savings)
+    if err != nil {
+        log.Printf("Ошибка получения данных для сброса: %v", err)
+        return
+    }
+
+    // Создаем новую запись с нулевыми доходами и расходами, но сохраняем баланс через savings
+    _, err = db.ExecContext(ctx, `
+        INSERT INTO cards (savings, income, expenses) 
+        VALUES ($1, $2, $3)
+    `, savings+balance, 0, 0)
+    if err != nil {
+        log.Printf("Ошибка сброса доходов и расходов: %v", err)
+    }
 }
 
 // Инициализация подключения к БД (локальная версия)
