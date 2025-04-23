@@ -1,6 +1,6 @@
 /**
  * Файл: static/script.js
- * Основной скрипт фронтенда для финансового приложения с улучшенным визуалом
+ * Основной скрипт фронтенда для финансового приложения с транзакциями
  */
 
 // Базовый путь API (относительно корня сайта)
@@ -39,6 +39,9 @@ const elements = {
     },
     balance: {
         display: document.getElementById('balance-button')
+    },
+    transactions: {
+        list: document.getElementById('transactions-list')
     }
 };
 
@@ -46,6 +49,7 @@ const elements = {
 document.addEventListener('DOMContentLoaded', () => {
     loadCardsData();
     loadChartsData();
+    loadTransactions();
     setupEventListeners();
     initCharts();
 });
@@ -56,6 +60,8 @@ function setupEventListeners() {
     elements.income.button.addEventListener('click', addIncome);
     elements.expenses.button.addEventListener('click', addExpense);
 }
+
+// ==================== РАБОТА С КАРТОЧКАМИ ====================
 
 // Загрузка карточек
 async function loadCardsData() {
@@ -75,12 +81,6 @@ function updateCardsUI(data) {
     elements.income.display.textContent = `${formatCurrency(data.income)}₽`;
     elements.expenses.display.textContent = `${formatCurrency(data.expenses)}₽`;
     elements.balance.display.textContent = `${formatCurrency(data.balance)}₽`;
-}
-
-async function updateCharts() {
-    const response = await fetch('/api/charts');
-    const data = await response.json();
-    renderCharts(data); // Перерисовываем графики
 }
 
 // Обновить накопления
@@ -114,6 +114,59 @@ async function updateSavings() {
     }
 }
 
+// ==================== РАБОТА С ТРАНЗАКЦИЯМИ ====================
+
+// Загрузка транзакций
+async function loadTransactions() {
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/transactions`);
+        if (!res.ok) throw new Error('Ошибка загрузки транзакций');
+        const transactions = await res.json();
+        renderTransactions(transactions);
+    } catch (err) {
+        console.error(err);
+        showAlert('Ошибка загрузки транзакций', 'error');
+    }
+}
+
+// Отображение транзакций
+function renderTransactions(transactions) {
+    elements.transactions.list.innerHTML = transactions.map(t => `
+        <div class="transaction transaction-${t.type}">
+            <span class="transaction-date">${new Date(t.timestamp).toLocaleString()}</span>
+            <span class="transaction-category">${t.category || 'Без категории'}</span>
+            <span class="transaction-amount">
+                ${t.type === 'income' ? '+' : '-'}${formatCurrency(t.amount)}₽
+            </span>
+        </div>
+    `).join('');
+}
+
+// Добавление транзакции
+async function addTransaction(type, amount, category) {
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/transactions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                type: type,
+                amount: amount,
+                category: category || 'Другое'
+            })
+        });
+        
+        if (!res.ok) throw new Error('Ошибка добавления транзакции');
+        
+        const data = await res.json();
+        await Promise.all([loadCardsData(), loadChartsData(), loadTransactions()]);
+        return data;
+    } catch (err) {
+        console.error(err);
+        showAlert('Ошибка добавления транзакции', 'error');
+        return null;
+    }
+}
+
 // Добавить доход
 async function addIncome() {
     const value = parseInt(elements.income.input.value);
@@ -126,22 +179,13 @@ async function addIncome() {
         return;
     }
 
-    try {
-        const res = await fetch(`${API_BASE_URL}/api/cards/update`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                type: 'income',
-                value: value,
-                isIncremental: true
-            })
-        });
-        if (!res.ok) throw new Error('Ошибка запроса');
+    const category = prompt('Укажите категорию дохода:', 'Зарплата');
+    if (category === null) return;
+
+    const transaction = await addTransaction('income', value, category);
+    if (transaction) {
         elements.income.input.value = '';
-        await Promise.all([loadCardsData(), loadChartsData()]);
-        showAlert('Доходы обновлены', 'success');
-    } catch (err) {
-        showAlert('Ошибка обновления доходов', 'error');
+        showAlert('Доход добавлен', 'success');
     }
 }
 
@@ -157,24 +201,17 @@ async function addExpense() {
         return;
     }
 
-    try {
-        const res = await fetch(`${API_BASE_URL}/api/cards/update`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                type: 'expenses',
-                value: value,
-                isIncremental: true
-            })
-        });
-        if (!res.ok) throw new Error('Ошибка запроса');
+    const category = prompt('Укажите категорию расхода:', 'Продукты');
+    if (category === null) return;
+
+    const transaction = await addTransaction('expense', value, category);
+    if (transaction) {
         elements.expenses.input.value = '';
-        await Promise.all([loadCardsData(), loadChartsData()]);
-        showAlert('Расходы обновлены', 'success');
-    } catch (err) {
-        showAlert('Ошибка обновления расходов', 'error');
+        showAlert('Расход добавлен', 'success');
     }
 }
+
+// ==================== РАБОТА С ГРАФИКАМИ ====================
 
 // Загрузка графиков
 async function loadChartsData() {
@@ -448,12 +485,22 @@ function renderCharts(data) {
             { 
                 name: 'Доходы', 
                 data: data.income || Array(12).fill(0),
-                color: chartsConfig.colors.income 
+                color: chartsConfig.colors.income,
+                pointStart: 0,
+                pointInterval: 1,
+                tooltip: {
+                    pointFormat: '<span style="color:{point.color}">\u25CF</span> {series.name}: <b>{point.y} ₽ (всего)</b><br/>'
+                }
             },
             { 
                 name: 'Расходы', 
                 data: data.expenses || Array(12).fill(0),
-                color: chartsConfig.colors.expenses 
+                color: chartsConfig.colors.expenses,
+                pointStart: 0,
+                pointInterval: 1,
+                tooltip: {
+                    pointFormat: '<span style="color:{point.color}">\u25CF</span> {series.name}: <b>{point.y} ₽ (всего)</b><br/>'
+                }
             }
         ],
         tooltip: {
@@ -485,7 +532,7 @@ function renderCharts(data) {
         chart: {
             type: 'column',
             backgroundColor: chartsConfig.colors.background,
-            spacing: [20, 20, 20, 20],
+            spacing: [10, 10, 10, 10],
             className: 'column-chart',
             animation: false
         },
@@ -545,15 +592,17 @@ function renderCharts(data) {
                 name: 'Доходы', 
                 data: data.earning || Array(7).fill(0),
                 color: chartsConfig.colors.income,
-                pointPadding: 0.1,
-                pointPlacement: -0.2
+                tooltip: {
+                    pointFormat: '<span style="color:{point.color}">\u25CF</span> {series.name}: <b>{point.y} ₽ (всего)</b><br/>'
+                }
             },
             { 
                 name: 'Расходы', 
                 data: data.spent || Array(7).fill(0),
                 color: chartsConfig.colors.expenses,
-                pointPadding: 0.1,
-                pointPlacement: 0.2
+                tooltip: {
+                    pointFormat: '<span style="color:{point.color}">\u25CF</span> {series.name}: <b>{point.y} ₽ (всего)</b><br/>'
+                }
             }
         ],
         tooltip: {
@@ -663,6 +712,8 @@ function resetChart(chart) {
     });
     chart.redraw();
 }
+
+// ==================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ====================
 
 // Обновление цвета tooltip
 function updateTooltipColor(color) {
