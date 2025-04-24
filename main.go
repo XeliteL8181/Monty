@@ -130,10 +130,10 @@ func resetWeeklyChart(ctx context.Context) {
 	defer mu.Unlock()
 
 	_, err := db.ExecContext(ctx, `
-		 UPDATE charts 
-		 SET earning = '[0,0,0,0,0,0,0]', 
-			 spent = '[0,0,0,0,0,0,0]'
-	 `)
+		  UPDATE charts 
+		  SET earning = '[0,0,0,0,0,0,0]', 
+			  spent = '[0,0,0,0,0,0,0]'
+	  `)
 	if err != nil && !errors.Is(err, context.Canceled) {
 		log.Printf("Ошибка сброса недельного графика: %v", err)
 	}
@@ -145,10 +145,10 @@ func resetYearlyChart(ctx context.Context) {
 	defer mu.Unlock()
 
 	_, err := db.ExecContext(ctx, `
-		 UPDATE charts 
-		 SET income = '[0,0,0,0,0,0,0,0,0,0,0,0]', 
-			 expenses = '[0,0,0,0,0,0,0,0,0,0,0,0]'
-	 `)
+		  UPDATE charts 
+		  SET income = '[0,0,0,0,0,0,0,0,0,0,0,0]', 
+			  expenses = '[0,0,0,0,0,0,0,0,0,0,0,0]'
+	  `)
 	if err != nil && !errors.Is(err, context.Canceled) {
 		log.Printf("Ошибка сброса годового графика: %v", err)
 	}
@@ -162,11 +162,11 @@ func resetIncomeExpenses(ctx context.Context) {
 	// Получаем текущий баланс и накопления
 	var balance, savings int64
 	err := db.QueryRowContext(ctx, `
-		 SELECT balance, savings 
-		 FROM cards 
-		 ORDER BY last_updated DESC 
-		 LIMIT 1
-	 `).Scan(&balance, &savings)
+		  SELECT balance, savings 
+		  FROM cards 
+		  ORDER BY last_updated DESC 
+		  LIMIT 1
+	  `).Scan(&balance, &savings)
 
 	if err != nil {
 		if !errors.Is(err, context.Canceled) {
@@ -177,9 +177,9 @@ func resetIncomeExpenses(ctx context.Context) {
 
 	// Создаем новую запись с нулевыми доходами и расходами, но сохраняем баланс через savings
 	_, err = db.ExecContext(ctx, `
-		 INSERT INTO cards (savings, income, expenses) 
-		 VALUES ($1, $2, $3)
-	 `, savings+balance, 0, 0)
+		  INSERT INTO cards (savings, income, expenses) 
+		  VALUES ($1, $2, $3)
+	  `, savings+balance, 0, 0)
 
 	if err != nil && !errors.Is(err, context.Canceled) {
 		log.Printf("Ошибка сброса доходов и расходов: %v", err)
@@ -215,35 +215,35 @@ func initDB() error {
 // Создание таблиц в БД
 func createTables(ctx context.Context) error {
 	query := `
-		 CREATE TABLE IF NOT EXISTS cards (
-			 id SERIAL PRIMARY KEY,
-			 savings BIGINT DEFAULT 0,
-			 income BIGINT DEFAULT 0,
-			 expenses BIGINT DEFAULT 0,
-			 balance BIGINT GENERATED ALWAYS AS (income - expenses) STORED,
-			 last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-		 );
-		 
-		 CREATE TABLE IF NOT EXISTS charts (
-			 id SERIAL PRIMARY KEY,
-			 months JSONB DEFAULT '["Янв","Фев","Мар","Апр","Май","Июн","Июл","Авг","Сен","Окт","Ноя","Дек"]',
-			 income JSONB DEFAULT '[0,0,0,0,0,0,0,0,0,0,0,0]',
-			 expenses JSONB DEFAULT '[0,0,0,0,0,0,0,0,0,0,0,0]',
-			 days JSONB DEFAULT '["Пн","Вт","Ср","Чт","Пт","Сб","Вс"]',
-			 earning JSONB DEFAULT '[0,0,0,0,0,0,0]',
-			 spent JSONB DEFAULT '[0,0,0,0,0,0,0]'
-		 );
- 
-		 CREATE TABLE IF NOT EXISTS transactions (
-			 id SERIAL PRIMARY KEY,
-			 type VARCHAR(10) NOT NULL CHECK (type IN ('income', 'expense')),
-			 amount BIGINT NOT NULL,
-			 category VARCHAR(50),
-			 timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-		 );
- 
-		 CREATE INDEX IF NOT EXISTS transactions_timestamp_idx ON transactions(timestamp DESC);
-	 `
+		  CREATE TABLE IF NOT EXISTS cards (
+			  id SERIAL PRIMARY KEY,
+			  savings BIGINT DEFAULT 0,
+			  income BIGINT DEFAULT 0,
+			  expenses BIGINT DEFAULT 0,
+			  balance BIGINT GENERATED ALWAYS AS (income - expenses) STORED,
+			  last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		  );
+		  
+		  CREATE TABLE IF NOT EXISTS charts (
+			  id SERIAL PRIMARY KEY,
+			  months JSONB DEFAULT '["Янв","Фев","Мар","Апр","Май","Июн","Июл","Авг","Сен","Окт","Ноя","Дек"]',
+			  income JSONB DEFAULT '[0,0,0,0,0,0,0,0,0,0,0,0]',
+			  expenses JSONB DEFAULT '[0,0,0,0,0,0,0,0,0,0,0,0]',
+			  days JSONB DEFAULT '["Пн","Вт","Ср","Чт","Пт","Сб","Вс"]',
+			  earning JSONB DEFAULT '[0,0,0,0,0,0,0]',
+			  spent JSONB DEFAULT '[0,0,0,0,0,0,0]'
+		  );
+  
+		  CREATE TABLE IF NOT EXISTS transactions (
+			  id SERIAL PRIMARY KEY,
+			  type VARCHAR(10) NOT NULL CHECK (type IN ('income', 'expense')),
+			  amount BIGINT NOT NULL,
+			  category VARCHAR(50),
+			  timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+		  );
+  
+		  CREATE INDEX IF NOT EXISTS transactions_timestamp_idx ON transactions(timestamp DESC);
+	  `
 
 	_, err := db.ExecContext(ctx, query)
 	return err
@@ -317,11 +317,11 @@ func getCardsData(w http.ResponseWriter, r *http.Request) {
 
 	var data CardData
 	err := db.QueryRowContext(r.Context(), `
-		 SELECT savings, income, expenses, balance 
-		 FROM cards 
-		 ORDER BY last_updated DESC 
-		 LIMIT 1
-	 `).Scan(&data.Savings, &data.Income, &data.Expenses, &data.Balance)
+		  SELECT savings, income, expenses, balance 
+		  FROM cards 
+		  ORDER BY last_updated DESC 
+		  LIMIT 1
+	  `).Scan(&data.Savings, &data.Income, &data.Expenses, &data.Balance)
 
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Ошибка получения данных: %v", err), http.StatusInternalServerError)
@@ -417,12 +417,12 @@ func updateChartData(operationType string, value int64) {
 
 	// Для недельного графика
 	err := db.QueryRowContext(bgCtx, `
-        SELECT 
-            COALESCE((earning->>$1)::bigint, 0) as day_value,
-            earning
-        FROM charts
-        LIMIT 1
-    `, day).Scan(&currentDayValue, &dayData)
+		 SELECT 
+			 COALESCE((earning->>$1)::bigint, 0) as day_value,
+			 earning
+		 FROM charts
+		 LIMIT 1
+	 `, day).Scan(&currentDayValue, &dayData)
 
 	if err != nil && !errors.Is(err, context.Canceled) {
 		log.Printf("Ошибка получения данных дня: %v", err)
@@ -431,19 +431,18 @@ func updateChartData(operationType string, value int64) {
 
 	// Для месячного графика
 	err = db.QueryRowContext(bgCtx, `
-        SELECT 
-            COALESCE((income->>$1)::bigint, 0) as month_value,
-            income
-        FROM charts
-        LIMIT 1
-    `, month).Scan(&currentMonthValue, &monthData)
+		 SELECT 
+			 COALESCE((income->>$1)::bigint, 0) as month_value,
+			 income
+		 FROM charts
+		 LIMIT 1
+	 `, month).Scan(&currentMonthValue, &monthData)
 
 	if err != nil && !errors.Is(err, context.Canceled) {
 		log.Printf("Ошибка получения данных месяца: %v", err)
 		return
 	}
 
-	// Обновляем значения
 	// Обновляем значения
 	var query string
 	if operationType == "income" {
@@ -502,11 +501,11 @@ func transactionsHandler(w http.ResponseWriter, r *http.Request) {
 // Получение списка транзакций
 func getTransactions(w http.ResponseWriter, r *http.Request) {
 	rows, err := db.QueryContext(r.Context(), `
-		 SELECT type, amount, category, timestamp 
-		 FROM transactions 
-		 ORDER BY timestamp DESC
-		 LIMIT 100
-	 `)
+		  SELECT type, amount, category, timestamp 
+		  FROM transactions 
+		  ORDER BY timestamp DESC
+		  LIMIT 100
+	  `)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -561,9 +560,9 @@ func addTransaction(w http.ResponseWriter, r *http.Request) {
 
 	// 1. Добавляем транзакцию
 	_, err = tx.ExecContext(r.Context(), `
-		 INSERT INTO transactions (type, amount, category, timestamp)
-		 VALUES ($1, $2, $3, $4)
-	 `, t.Type, t.Amount, t.Category, t.Timestamp)
+		  INSERT INTO transactions (type, amount, category, timestamp)
+		  VALUES ($1, $2, $3, $4)
+	  `, t.Type, t.Amount, t.Category, t.Timestamp)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -656,10 +655,10 @@ func getChartsData(w http.ResponseWriter, r *http.Request) {
 	var months, income, expenses, days, earning, spent []byte
 
 	err := db.QueryRowContext(r.Context(), `
-		 SELECT months, income, expenses, days, earning, spent
-		 FROM charts
-		 LIMIT 1
-	 `).Scan(&months, &income, &expenses, &days, &earning, &spent)
+		  SELECT months, income, expenses, days, earning, spent
+		  FROM charts
+		  LIMIT 1
+	  `).Scan(&months, &income, &expenses, &days, &earning, &spent)
 
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Ошибка отрисовки графиков: %v", err), http.StatusInternalServerError)
