@@ -1,833 +1,840 @@
 @font-face {
-    font-family: 'Roboto';
-    src: url('./fonts./Roboto-Thin.woff2') format('woff2');
-    font-weight: 100;
-    font-style: normal;
-    font-display: swap;
-  }
-  
-  @font-face {
-    font-family: 'Roboto';
-    src: url('./fonts./Roboto-ExtraLight.woff2') format('woff2');
-    font-weight: 200;
-    font-style: normal;
-    font-display: swap;
-  }
-  
-  @font-face {
-    font-family: 'Roboto';
-    src: url('./fonts./Roboto-Light.woff2') format('woff2');
-    font-weight: 300;
-    font-style: normal;
-    font-display: swap;
-  }
-  
-  @font-face {
-    font-family: 'Roboto';
-    src: url('./fonts./Roboto-Regular.woff2') format('woff2');
-    font-weight: 400;
-    font-style: normal;
-    font-display: swap;
-  }
-  
-  @font-face {
-    font-family: 'Roboto';
-    src: url('./fonts./Roboto-Medium.woff2') format('woff2');
-    font-weight: 500;
-    font-style: normal;
-    font-display: swap;
-  }
-  
-  @font-face {
-    font-family: 'Roboto';
-    src: url('./fonts./Roboto-SemiBold.woff2') format('woff2');
-    font-weight: 600;
-    font-style: normal;
-    font-display: swap;
-  }
-  
-  @font-face {
-    font-family: 'Roboto';
-    src: url('./fonts./Roboto-Bold.woff2') format('woff2');
-    font-weight: 700;
-    font-style: normal;
-    font-display: swap;
-  }
-  
-  @font-face {
-    font-family: 'Roboto';
-    src: url('./fonts./Roboto-ExtraBold.woff2') format('woff2');
-    font-weight: 800;
-    font-style: normal;
-    font-display: swap;
-  }
-  
-  @font-face {
-    font-family: 'Roboto';
-    src: url('./fonts./Roboto-Black.woff2') format('woff2');
-    font-weight: 900;
-    font-style: normal;
-    font-display: swap;
-  }
-  
-  /**
+  font-family: 'Roboto';
+  src: url('../fonts./Roboto-Thin.woff2') format('woff2');
+  font-weight: 100;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Roboto';
+  src: url('../fonts./Roboto-ExtraLight.woff2') format('woff2');
+  font-weight: 200;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Roboto';
+  src: url('../fonts./Roboto-Light.woff2') format('woff2');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Roboto';
+  src: url('../fonts./Roboto-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Roboto';
+  src: url('../fonts./Roboto-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Roboto';
+  src: url('../fonts/Roboto-SemiBold.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Roboto';
+  src: url('../fonts./Roboto-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Roboto';
+  src: url('../fonts./Roboto-ExtraBold.woff2') format('woff2');
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Roboto';
+  src: url('../fonts./Roboto-Black.woff2') format('woff2');
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/**
     Нормализация блочной модели
    */
-   *,
-   ::before,
-   ::after {
-     box-sizing: border-box;
-   }
-   
-   /**
+*,
+::before,
+::after {
+  box-sizing: border-box;
+}
+
+/**
      Убираем внутренние отступы слева тегам списков,
      у которых есть атрибут class
     */
-   :where(ul, ol):where([class]) {
-     padding-left: 0;
-   }
-   
-   /**
+:where(ul, ol):where([class]) {
+  padding-left: 0;
+}
+
+/**
      Убираем внешние отступы body и двум другим тегам,
      у которых есть атрибут class
     */
-   body,
-   :where(blockquote, figure):where([class]) {
-     margin: 0;
-   }
-   
-   /**
+body,
+:where(blockquote, figure):where([class]) {
+  margin: 0;
+}
+
+/**
      Убираем внешние отступы вертикали нужным тегам,
      у которых есть атрибут class
     */
-   :where(
-     h1,
-     h2,
-     h3,
-     h4,
-     h5,
-     h6,
-     p,
-     ul,
-     ol,
-     dl
-   ):where([class]) {
-     margin-block: 0;
-   }
-   
-   :where(dd[class]) {
-     margin-left: 0;
-   }
-   
-   :where(fieldset[class]) {
-     margin-left: 0;
-     padding: 0;
-     border: none;
-   }
-   
-   /**
+:where(h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  p,
+  ul,
+  ol,
+  dl):where([class]) {
+  margin-block: 0;
+}
+
+:where(dd[class]) {
+  margin-left: 0;
+}
+
+:where(fieldset[class]) {
+  margin-left: 0;
+  padding: 0;
+  border: none;
+}
+
+/**
      Убираем стандартный маркер маркированному списку,
      у которого есть атрибут class
     */
-   :where(ul[class]) {
-     list-style: none;
-   }
-   
-   :where(address[class]) {
-     font-style: normal;
-   }
-   
-   /**
+:where(ul[class]) {
+  list-style: none;
+}
+
+:where(address[class]) {
+  font-style: normal;
+}
+
+/**
      Обнуляем вертикальные внешние отступы параграфа,
      объявляем локальную переменную для внешнего отступа вниз,
      чтобы избежать взаимодействие с более сложным селектором
     */
-   p {
-     --paragraphMarginBottom: 24px;
-   
-     margin-block: 0;
-   }
-   
-   /**
+p {
+  --paragraphMarginBottom: 24px;
+
+  margin-block: 0;
+}
+
+/**
      Внешний отступ вниз для параграфа без атрибута class,
      который расположен не последним среди своих соседних элементов
     */
-   p:where(:not([class]):not(:last-child)) {
-     margin-bottom: var(--paragraphMarginBottom);
-   }
-   
-   
-   /**
+p:where(:not([class]):not(:last-child)) {
+  margin-bottom: var(--paragraphMarginBottom);
+}
+
+
+/**
      Упрощаем работу с изображениями и видео
     */
-   img,
-   video {
-     display: block;
-     max-width: 100%;
-     height: auto;
-   }
-   
-   /**
+img,
+video {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+/**
      Наследуем свойства шрифт для полей ввода
     */
-   input,
-   textarea,
-   select,
-   button {
-     font: inherit;
-   }
-   
-   /* ЗДЕСЬ НАСТРОЙКА СКРОЛЛБАРА */
-   html {
-     /**
+input,
+textarea,
+select,
+button {
+  font: inherit;
+}
+
+/* ЗДЕСЬ НАСТРОЙКА СКРОЛЛБАРА */
+html {
+  /**
        Пригодится в большинстве ситуаций
        (когда, например, нужно будет "прижать" футер к низу сайта)
       */
-     height: 100%;
-     /**
+  height: 100%;
+  /**
        Убираем скачок интерфейса по горизонтали
        при появлении / исчезновении скроллбара
       */
-     scrollbar-gutter: stable;
-   }
-   
-   /**
+  scrollbar-gutter: stable;
+}
+
+/**
      Плавный скролл
     */
-   html,
-   :has(:target) {
-     scroll-behavior: smooth;
-   }
-   
-   body {
-     /**
+html,
+:has(:target) {
+  scroll-behavior: smooth;
+}
+
+body {
+  /**
        Пригодится в большинстве ситуаций
        (когда, например, нужно будет "прижать" футер к низу сайта)
       */
-     min-height: 100%;
-     /**
+  min-height: 100%;
+  /**
        Унифицированный интерлиньяж
       */
-     line-height: 1.5;
-   }
-   
-   /**
+  line-height: 1.5;
+}
+
+/**
      Нормализация высоты элемента ссылки при его инспектировании в DevTools
     */
-   a:where([class]) {
-     display: inline-flex;
-   }
-   
-   /**
+a:where([class]) {
+  display: inline-flex;
+}
+
+/**
      Курсор-рука при наведении на элемент
     */
-   button,
-   label {
-     cursor: pointer;
-   }
-   
-   /**
+button,
+label {
+  cursor: pointer;
+}
+
+/**
      Приводим к единому цвету svg-элементы
      (за исключением тех, у которых уже указан
      атрибут fill со значением 'none' или начинается с 'url')
     */
-   :where([fill]:not(
-     [fill="none"],
-     [fill^="url"]
-   )) {
-     fill: currentColor;
-   }
-   
-   /**
+:where([fill]:not([fill="none"],
+    [fill^="url"])) {
+  fill: currentColor;
+}
+
+/**
      Приводим к единому цвету svg-элементы
      (за исключением тех, у которых уже указан
      атрибут stroke со значением 'none')
     */
-   :where([stroke]:not(
-     [stroke="none"],
-     [stroke^="url"]
-   )) {
-     stroke: currentColor;
-   }
-   
-   /**
+:where([stroke]:not([stroke="none"],
+    [stroke^="url"])) {
+  stroke: currentColor;
+}
+
+/**
      Чиним баг задержки смены цвета при взаимодействии с svg-элементами
     */
-   svg * {
-     transition-property: fill, stroke;
-   }
-   
-   /**
+svg * {
+  transition-property: fill, stroke;
+}
+
+/**
      Приведение рамок таблиц в классический 'collapse' вид
     */
-   :where(table) {
-     border-collapse: collapse;
-     border-color: currentColor;
-   }
-   
-   /**
+:where(table) {
+  border-collapse: collapse;
+  border-color: currentColor;
+}
+
+/**
      Удаляем все анимации и переходы для людей,
      которые предпочитают их не использовать
     */
-   @media (prefers-reduced-motion: reduce) {
-     *,
-     ::before,
-     ::after {
-       animation-duration: 0.01ms;
-       animation-iteration-count: 1;
-       transition-duration: 0.01ms;
-       scroll-behavior: auto;
-     }
-   }
-  
-  :root { 
-    --color-lime: #78be20;
-    --color-violet: #8c00ff;
-    --color-black: #000000;
-    --color-antracit-grey: #2c2c34;
-    --color-black-oil: #1A1C22;
-    --color-lavande: #E5EDFF;
-  
-    --border-radius: 25px;
-    --border: 1px solid var(--color-black);
-  
-    --font-family-base: 'Roboto', san-serif; 
-    
-    --button-height: 26px;
-  
-    --container-small-width: 215px;
-    --container-medium-width: 295px;
-    --container-large-width: 615px;
-    --container-padding-x: 15px;
-  
-    --transition-duration: 0.2s;
-  } 
-  
-  body {
-    font-family: var(--font-family-base);
-    font-weight: medium;
-    font-size: 15px;
-    line-height: 1.5;
-    color: var(--color-lavande);
-  
-    background-color: var(--color-antracit-grey);
-  }
-  
-  container {
-    max-width: calc(var(--container-medium-width) + var(--container-padding-x) * 2);
-    margin-inline: auto;
-    padding-inline: var(--container-padding-x);
-  }
-  
-  h1, h2, h3, h4, h5, h6 {
-    font-weight: 700;
-    text-transform: uppercase;
-  }
-  
-  a,
-  button,
-  input,
-  textarea,
-  svg * {
-    transition-duration: var(--transition-duration);
-  }
-  
-  a.header-menu-link {
-    color: var(--color-lavande);
-  }
-  
-  a.header-menu-link:hover {
-    color: var(--color-lime);
-  }
-  
-  button:hover {
-    color: var(--color-lime);
-  }
-  
-  .header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background-color: var(--color-black-oil);
-    width: 100%;
-    height: 75px;
-    padding-inline: 32px;
-    margin-bottom: 20px;
-    position: sticky;  
-    top: 0;  
-    z-index: 100;  
-    border: var(--border);
-    border-radius: 5px;
-  }
-  
-  .header-logo {
-    flex-shrink: 0;
-  }
-  
-  .path-1 {
-    color: var(--color-violet);
-  }
-  
-  .path-2 {
-    color: var(--color-lime);
-  }
-  
-  .header-menu-list {
-    display: flex;
-    flex-wrap: wrap;
-    column-gap: 30px;
-  }
-  
-  .header-menu-link {
-    display: inline-flex;
-    height: 75px;
-    align-items: center;
-    column-gap: 15px;
-    text-decoration: none;
-    text-transform: uppercase;
-    font-weight: 600;
-    font-size: 18px;
-    letter-spacing: 1.2px;
-  }
-  
-  .header-menu-link.is-current::after {
-    color: var(--color-violet);
-  }
-  
-  .header-actions {
-    display: flex;
-  }
-  
-  .button {
-    display: inline-flex;
-    align-items: center;
-    height: 38px;
-    padding-inline: 26px;
-    font-size: 12px;
-    font-weight: 700;
-    line-height: 1.2px;
-    text-transform: uppercase;
-    white-space: nowrap;
-    color: var(--color-lavande);
-    background-color: var(--color-black-oil);
-    border: none;
-    border-radius: var(--border-radius);
-  }
-  
-  .header-menu-link {
-    gap: 5px;
-  }
-  
-  main {
-    position: relative;
-  }
-  
-  #main-page {
-    margin: 20px;
-    background-color: var(--color-black-oil);
-    border: var(--border);
-    border-radius: var(--border-radius);
-    display: flex;
-    left: 20px;
-    bottom: 20px;
-    right: 20px;
-    width: calc(100% - 40px);
-    height: calc(85vw * (9/16));  
-    align-items: center;
-    justify-content: center;
-    font-size: 40px;
-  }
-  
-  /* === Контейнер графика === */
-  /* Основные параметры расположения и внешнего вида контейнера */
-  .chart-container {
-    width: 70%;
-    max-width: 1000px;
-    height: auto;
-    margin: 20px auto;
-    border: var(--border);
-    border-radius: var(--border-radius) !important;
-    background-color: var(--color-black-oil);
-  }
-  
-  span.chart-container {
-    margin: 0px;
-    padding-top: 0px;
-  }
-  
-  /* Изменение углов графика */
-  #chart {
-    border-radius: var(--border-radius);
-  }
-  
-  /* === Шапка графика === */
-  /* Флекс-контейнер для заголовка и легенды */
-  .chart-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  
-  /* === Заголовок графика === */
-  /* Стилизация текста заголовка */
-  .chart-title {
-    font-size: 20px;
-    font-weight: 600;
-    color: var(--color-lavande);
-    margin: 15px;;
-  }
-  
-  /* === Легенда графика === */
-  /* Расположение элементов легенды */
-  .chart-legend {
-    display: flex;
-    gap: 25px;
-  }
-  
-  /* === Элемент легенды === */
-  /* Стилизация каждого элемента в легенде */
-  .legends-container {
-    display: flex;
-    gap: 10px;
-  }
-  
-  /* Основной контейнер для легенд - горизонтальное расположение с отступами */
-  .legends-container {
-    display: flex;
-    gap: 10px;
-  }
-  
-  /* Стиль контейнера каждой отдельной легенды - фон, скругления, отступы */
-  .legend-box {
-    background: var(--color-black-oil);
-    padding-right: 25px;
-    border-radius: var(--border-radius);
-  }
-  
-  /* Вертикальное расположение элементов внутри каждой легенды */
-  .chart-legend {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-  
-  /* Стиль каждого элемента легенды - выравнивание, отступы, шрифт */
-  .legend-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 16px;
-    color: var(--color-lavande);
-  }
-  
-  /* Стиль цветного маркера - размер, форма (ромб через поворот) */
-  .legend-color {
-    width: 12px;
-    height: 12px;
-    border-radius: 2px;
-    transform: rotate(45deg);
-  }
-  
-  /* Стиль неактивного элемента - полупрозрачность и зачеркивание */
-  .legend-item.disabled {
-    opacity: 0.5;
-    text-decoration: line-through;
-  }
-  
-  /* Индикатор для доходов - ромб */
-  .income-indicator {
-    border-radius: 50%;
-  }
-  
-  /* Индикатор для расходов - круг */
-  .expenses-indicator {
-    transform: rotate(45deg);
-    border-radius: 2px;
-  }
-  
-  /* Изменение эффектов легенды при наведении */
-  .income-indicator:hover {
-    color: var(--color-lime);
-  }
-  
-  /* === Основные линии графика === */
-  /* Параметры отображения линий данных */
-  .highcharts-series path {
-    stroke-linecap: round;
-    stroke-linejoin: round;
-    transition: opacity 0.3s ease, stroke-width 0.3s ease;
-    stroke-width: 2px;
-  }
-  
-  /* === Состояние наведения на линии === */
-  /* Изменение при наведении курсора */
-  .highcharts-series:hover path {
-    stroke-width: 4px;
-  }
-  
-  /* === Сетка графика === */
-  /* Стилизация вспомогательных линий сетки */
-  .highcharts-grid-line {
-    stroke: var(--color-antracit-grey) !important;
-    stroke-dasharray: 3, 3;
-  }
-  
-  /* === Подписи осей === */
-  /* Стилизация текста подписей осей */
-  .highcharts-axis-labels text {
-    font-size: 12px;
-    fill: var(--color-lavande) !important;
-  }
-  
-  /* === Всплывающая подсказка === */
-  /* Общие стили тултипа */
-  /* Улучшаем стиль подсказки */
-  .highcharts-tooltip {
-    border-radius: var(--border-radius) !important;
-    padding: 0 !important;
-    color: var(--tooltip-color);
-  }
-  
-  /* Стиль для текста в подсказке */
-  .highcharts-tooltip text {
-    fill: var(--color-lavande) !important;
-    font-size: 16px !important;
-  }
-  
-  /* === Фон графика === */
-  /* Стиль фоновой области */
-  .highcharts-background {
-    color: var(--color-black-oil);
-  }
-  
-  /* === Маркеры в подсказке === */
-  /* Цветные кружки в тултипе */
-  .highcharts-tooltip .series-marker {
-    display: inline-block;
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    margin-right: 8px;
-    vertical-align: middle;
-  }
-  
-  /* === Стиль первой серии (доходы) === */
-  /* Цвет для линии доходов */
-  .highcharts-series-0 {
-    color: var(--color-lime);
-  }
-  
-  /* === Стиль второй серии (расходы) === */
-  /* Цвет для линии расходов */
-  .highcharts-series-1 {
-    color: var(--color-violet);
-  }
-  
-  /* === Ось X === */
-  /* Дополнительные стили для оси X */
-  .highcharts-axis.highcharts-xaxis {
-    color: var(--color-antracit-grey);
-  }
-  
-  /* === Неактивная легенда === */
-  /* Стиль для скрытых/неактивных элементов легенды */
-  .legend-item.disabled {
-    text-decoration: line-through;
-    color: var(--color-lavande);
-  }
-  
-  /* === Анимации графика === */
-  /* Плавные переходы для линий */
-  .highcharts-series path {
-    stroke-linecap: round;
-    stroke-linejoin: round;
-    transition: stroke 0.4s ease, opacity 0.4s ease;
-  }
-  
-  /* === Анимация подсказки === */
-  /* Плавное появление/исчезновение тултипа */
-  .highcharts-tooltip {
-    transition: opacity 0.4s ease-in-out;
-  }
-  
-  /* Стили для Activity графика */
-  .activity-container {
-    margin: 30px auto;
-    max-width: 600px;
-    background: var(--color-lavande);
-    border-radius: var(--border-radius);
-    padding: 20px;
-  }
-  
-  .activity-legend {
-    display: flex;
-    justify-content: center;
-    margin-top: 20px;
-  }
-  
-  .activity-legend-item {
-    display: flex;
-    align-items: center;
-    margin: 0 15px;
-    cursor: pointer;
-  }
-  
-  .activity-legend-color {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    margin-right: 8px;
-  }
-  
-  /* Общие стили для обоих графиков */
-  .chart-wrapper {
-    margin-bottom: 40px;
-  }
-  
-  #activity-chart,
-  #chart-year {
-    border-radius: var(--border-radius) !important;
-    /* margin-bottom: 10px */
-  }
-    
-  .container {
-    max-width: 1000px;
-    margin: 0 auto;  
-  }
-    
-  .cards {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 20px;
-    justify-content: center;  
-    margin-bottom: 20px;
-  }
-    
-  .card {
-    background: var(--color-black-oil);
-    border-radius: var(--border-radius);
-    border: var(--border);
-    padding: 20px;
-    width: 230px;
-    text-align: center;  
-  }
-  
-  .card h2 {
-    margin-top: 0;
-    font-size: 15px;
-    color: var(--color-lavande);  
-  }
-    
-  .card span {
-    font-size: 30px;
-    font-weight: 400;
-    margin: 15px 5px;  
-  }
+@media (prefers-reduced-motion: reduce) {
 
-  .card-svg {
-    width: 41px;
-  } 
-
-  input {
-    width: 90%;
-    padding: 8px;
-    margin: 5px 0;
-    border: 1px solid;
-    border-radius: var(--border-radius);  
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+    transition-duration: 0.01ms;
+    scroll-behavior: auto;
   }
-    
-  .card-button {
-    background: var(--color-violet);
-    color: var(--color-lavande);
-    border: none;
-    padding: 8px 15px;
-    border-radius: 4px;
-    cursor: pointer;
-    margin-top: 5px;  
-  }
-  
-  .card-button:hover {
-    color: var(--color-lavande);
-    background-color: #6301b3;
-  }
-  
-  #balance {
-    height: 50%;
-    margin: auto 0;
-  }
-  
-  .custom-path {
-    color: var(--color-lime);
-  }
-  
-  .custom-rect {
-    color: var(--color-antracit-grey);
-  }
-
-  .alert {
-    padding: 15px 20px;
-    border-radius: 8px;
-    color: white;
-    display: flex;
-    align-items: center;
-    gap: 15px;
-    max-width: 300px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    transition: all 0.3s ease;
-    transform: translateX(0);
-    opacity: 1;
 }
 
-.alert.success { background: #4CAF50; }
-.alert.error { background: #F44336; }
-.alert.warning { background: #FF9800; }
-.alert.info { background: #2196F3; }
+:root {
+  --color-lime: #78be20;
+  --color-violet: #8c00ff;
+  --color-black: #000000;
+  --color-antracit-grey: #2c2c34;
+  --color-black-oil: #1A1C22;
+  --color-lavande: #E5EDFF;
+
+  --border-radius: 25px;
+  --border: 1px solid var(--color-black);
+
+  --font-family-base: 'Roboto', san-serif;
+
+  --button-height: 26px;
+
+  --container-small-width: 215px;
+  --container-medium-width: 295px;
+  --container-large-width: 615px;
+  --container-padding-x: 15px;
+
+  --transition-duration: 0.2s;
+}
+
+body {
+  font-family: var(--font-family-base);
+  font-weight: medium;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--color-lavande);
+
+  background-color: var(--color-antracit-grey);
+}
+
+container {
+  max-width: calc(var(--container-medium-width) + var(--container-padding-x) * 2);
+  margin-inline: auto;
+  padding-inline: var(--container-padding-x);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+a,
+button,
+input,
+textarea,
+svg * {
+  transition-duration: var(--transition-duration);
+}
+
+a.header-menu-link {
+  color: var(--color-lavande);
+}
+
+a.header-menu-link:hover {
+  color: var(--color-lime);
+}
+
+button:hover {
+  color: var(--color-lime);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: var(--color-black-oil);
+  width: 100%;
+  height: 75px;
+  padding-inline: 32px;
+  margin-bottom: 20px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  border: var(--border);
+  border-radius: 5px;
+}
+
+.header-logo {
+  flex-shrink: 0;
+}
+
+.path-1 {
+  color: var(--color-violet);
+}
+
+.path-2 {
+  color: var(--color-lime);
+}
+
+.header-menu-list {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 30px;
+}
+
+.header-menu-link {
+  display: inline-flex;
+  height: 75px;
+  align-items: center;
+  column-gap: 15px;
+  text-decoration: none;
+  text-transform: uppercase;
+  font-weight: 600;
+  font-size: 18px;
+  letter-spacing: 1.2px;
+}
+
+.header-menu-link.is-current::after {
+  color: var(--color-violet);
+}
+
+.header-actions {
+  display: flex;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  height: 38px;
+  padding-inline: 26px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--color-lavande);
+  background-color: var(--color-black-oil);
+  border: none;
+  border-radius: var(--border-radius);
+}
+
+.header-menu-link {
+  gap: 5px;
+}
+
+main {
+  position: relative;
+}
+
+#main-page {
+  margin: 20px;
+  background-color: var(--color-black-oil);
+  border: var(--border);
+  border-radius: var(--border-radius);
+  display: flex;
+  left: 20px;
+  bottom: 20px;
+  right: 20px;
+  width: calc(100% - 40px);
+  height: calc(85vw * (9/16));
+  align-items: center;
+  justify-content: center;
+  font-size: 40px;
+}
+
+/* === Контейнер графика === */
+/* Основные параметры расположения и внешнего вида контейнера */
+.chart-container {
+  width: 70%;
+  max-width: 1000px;
+  height: auto;
+  margin: 20px auto;
+  border: var(--border);
+  border-radius: var(--border-radius) !important;
+  background-color: var(--color-black-oil);
+}
+
+span.chart-container {
+  margin: 0px;
+  padding-top: 0px;
+}
+
+/* Изменение углов графика */
+#chart {
+  border-radius: var(--border-radius);
+}
+
+/* === Шапка графика === */
+/* Флекс-контейнер для заголовка и легенды */
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* === Заголовок графика === */
+/* Стилизация текста заголовка */
+.chart-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--color-lavande);
+  margin: 15px;
+  ;
+}
+
+/* === Легенда графика === */
+/* Расположение элементов легенды */
+.chart-legend {
+  display: flex;
+  gap: 25px;
+}
+
+/* === Элемент легенды === */
+/* Стилизация каждого элемента в легенде */
+.legends-container {
+  display: flex;
+  gap: 10px;
+}
+
+/* Основной контейнер для легенд - горизонтальное расположение с отступами */
+.legends-container {
+  display: flex;
+  gap: 10px;
+}
+
+/* Стиль контейнера каждой отдельной легенды - фон, скругления, отступы */
+.legend-box {
+  background: var(--color-black-oil);
+  padding-right: 25px;
+  border-radius: var(--border-radius);
+}
+
+/* Вертикальное расположение элементов внутри каждой легенды */
+.chart-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Стиль каждого элемента легенды - выравнивание, отступы, шрифт */
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  color: var(--color-lavande);
+}
+
+/* Стиль цветного маркера - размер, форма (ромб через поворот) */
+.legend-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  transform: rotate(45deg);
+}
+
+/* Стиль неактивного элемента - полупрозрачность и зачеркивание */
+.legend-item.disabled {
+  opacity: 0.5;
+  text-decoration: line-through;
+}
+
+/* Индикатор для доходов - ромб */
+.income-indicator {
+  border-radius: 50%;
+}
+
+/* Индикатор для расходов - круг */
+.expense-indicator {
+  transform: rotate(45deg);
+  border-radius: 2px;
+}
+
+/* Изменение эффектов легенды при наведении */
+.income-indicator:hover {
+  color: var(--color-lime);
+}
+
+/* === Основные линии графика === */
+/* Параметры отображения линий данных */
+.highcharts-series path {
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: opacity 0.3s ease, stroke-width 0.3s ease;
+  stroke-width: 2px;
+}
+
+/* === Состояние наведения на линии === */
+/* Изменение при наведении курсора */
+.highcharts-series:hover path {
+  stroke-width: 4px;
+}
+
+/* === Сетка графика === */
+/* Стилизация вспомогательных линий сетки */
+.highcharts-grid-line {
+  stroke: var(--color-antracit-grey) !important;
+  stroke-dasharray: 3, 3;
+}
+
+/* === Подписи осей === */
+/* Стилизация текста подписей осей */
+.highcharts-axis-labels text {
+  font-size: 12px;
+  fill: var(--color-lavande) !important;
+}
+
+/* === Всплывающая подсказка === */
+/* Общие стили тултипа */
+/* Улучшаем стиль подсказки */
+.highcharts-tooltip {
+  border-radius: var(--border-radius) !important;
+  padding: 0 !important;
+  color: var(--tooltip-color);
+}
+
+/* Стиль для текста в подсказке */
+.highcharts-tooltip text {
+  fill: var(--color-lavande) !important;
+  font-size: 16px !important;
+}
+
+/* === Фон графика === */
+/* Стиль фоновой области */
+.highcharts-background {
+  color: var(--color-black-oil);
+}
+
+/* === Маркеры в подсказке === */
+/* Цветные кружки в тултипе */
+.highcharts-tooltip .series-marker {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+/* === Стиль первой серии (доходы) === */
+/* Цвет для линии доходов */
+.highcharts-series-0 {
+  color: var(--color-lime);
+}
+
+/* === Стиль второй серии (расходы) === */
+/* Цвет для линии расходов */
+.highcharts-series-1 {
+  color: var(--color-violet);
+}
+
+/* === Ось X === */
+/* Дополнительные стили для оси X */
+.highcharts-axis.highcharts-xaxis {
+  color: var(--color-antracit-grey);
+}
+
+/* === Неактивная легенда === */
+/* Стиль для скрытых/неактивных элементов легенды */
+.legend-item.disabled {
+  text-decoration: line-through;
+  color: var(--color-lavande);
+}
+
+/* === Анимации графика === */
+/* Плавные переходы для линий */
+.highcharts-series path {
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: stroke 0.4s ease, opacity 0.4s ease;
+}
+
+/* === Анимация подсказки === */
+/* Плавное появление/исчезновение тултипа */
+.highcharts-tooltip {
+  transition: opacity 0.4s ease-in-out;
+}
+
+/* Стили для Activity графика */
+.activity-container {
+  margin: 30px auto;
+  max-width: 600px;
+  background: var(--color-lavande);
+  border-radius: var(--border-radius);
+  padding: 20px;
+}
+
+.activity-legend {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.activity-legend-item {
+  display: flex;
+  align-items: center;
+  margin: 0 15px;
+  cursor: pointer;
+}
+
+.activity-legend-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin-right: 8px;
+}
+
+/* Общие стили для обоих графиков */
+.chart-wrapper {
+  margin-bottom: 40px;
+}
+
+#activity-chart,
+#chart-year {
+  border-radius: var(--border-radius) !important;
+  /* margin-bottom: 10px */
+}
+
+.container {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.card {
+  background: var(--color-black-oil);
+  border-radius: var(--border-radius);
+  border: var(--border);
+  padding: 20px;
+  width: 230px;
+  text-align: center;
+}
+
+.card h2 {
+  margin-top: 0;
+  font-size: 15px;
+  color: var(--color-lavande);
+}
+
+.card span {
+  font-size: 30px;
+  font-weight: 400;
+  margin: 15px 5px;
+}
+
+.card-svg {
+  width: 41px;
+}
+
+input {
+  width: 90%;
+  padding: 8px;
+  margin: 5px 0;
+  border: 1px solid;
+  border-radius: var(--border-radius);
+}
+
+.card-button {
+  background: var(--color-violet);
+  color: var(--color-lavande);
+  border: none;
+  padding: 8px 15px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-top: 5px;
+}
+
+.card-button:hover {
+  color: var(--color-lavande);
+  background-color: #6301b3;
+}
+
+#balance {
+  height: 50%;
+  margin: auto 0;
+}
+
+.custom-path {
+  color: var(--color-lime);
+}
+
+.custom-rect {
+  color: var(--color-antracit-grey);
+}
+
+.alert {
+  padding: 15px 20px;
+  border-radius: 8px;
+  color: white;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  max-width: 300px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s ease;
+  transform: translateX(0);
+  opacity: 1;
+}
+
+.alert.success {
+  background: #4CAF50;
+}
+
+.alert.error {
+  background: #F44336;
+}
+
+.alert.warning {
+  background: #FF9800;
+}
+
+.alert.info {
+  background: #2196F3;
+}
 
 .alert-close {
-    margin-left: auto;
-    cursor: pointer;
-    font-weight: bold;
-    font-size: 18px;
+  margin-left: auto;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 18px;
 }
-  
-  footer {
-    text-align: center;
+
+footer {
+  text-align: center;
+}
+
+@media (max-width: 880px) {
+  .header {
+    flex-wrap: wrap;
+    row-gap: 10px;
+    padding-top: 20px;
+    padding-inline: 15px;
+    height: 120px;
   }
-  
-  @media (max-width: 880px) {
-    .header {
-      flex-wrap:  wrap;
-      row-gap: 10px;
-      padding-top: 20px;
-      padding-inline: 15px;
-      height: 120px;
-    }
-  
-    .header-menu {
-      order: 1;
-      flex-basis: 100%;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-  
-    .header-menu-link {
-      height: 30px;
-    }
+
+  .header-menu {
+    order: 1;
+    flex-basis: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
   }
-  
-  @media (max-width: 710px) {
-    .header {
-      height: 140px;
-    }
-  
-    .header-menu-link {
-      height: 25px;
-    }
-  
-    .header-menu {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
+
+  .header-menu-link {
+    height: 30px;
   }
+}
+
+@media (max-width: 710px) {
+  .header {
+    height: 140px;
+  }
+
+  .header-menu-link {
+    height: 25px;
+  }
+
+  .header-menu {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+}
